@@ -127,7 +127,7 @@ export default function CodingProblemsPage() {
                   localStorage.setItem(`plt_submitted_${candidateId}`, 'true')
                   const bs = cameraRef.current?.getScore() ?? null
                   if (bs !== null) localStorage.setItem('plt_behavior_coding', String(bs))
-                  navigate('/written-test-done')
+                  navigate('/')
                 }}
                 className="w-full flex items-center gap-4 bg-white dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/[0.08] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3.5 text-left transition cursor-pointer">
                 <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex items-center justify-center flex-shrink-0">
