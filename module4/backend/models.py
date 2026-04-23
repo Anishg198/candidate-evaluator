@@ -32,6 +32,19 @@ class Problem(Base):
     submissions: Mapped[list["CodingSubmission"]] = relationship("CodingSubmission", back_populates="problem")
 
 
+class CodingSession(Base):
+    """Tracks which 3 problems were randomly assigned to a candidate."""
+    __tablename__ = "m4_coding_sessions"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    candidate_id: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    name: Mapped[str | None] = mapped_column(String, nullable=True, default="")
+    email: Mapped[str | None] = mapped_column(String, nullable=True, default="")
+    problem_ids: Mapped[list] = mapped_column(JSON, default=list)   # 3 randomly chosen
+    required_count: Mapped[int] = mapped_column(Integer, default=2) # must attempt N
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 class CodingSubmission(Base):
     __tablename__ = "m4_coding_submissions"
 

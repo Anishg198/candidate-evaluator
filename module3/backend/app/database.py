@@ -1,23 +1,15 @@
+import os
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 
-from app.config import get_settings
-
-settings = get_settings()
-
-engine = create_async_engine(
-    settings.database_url,
-    echo=settings.debug,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql+asyncpg://hcl_user:hcl_pass@127.0.0.1:5432/hcl_db",
 )
 
-AsyncSessionLocal = async_sessionmaker(
-    bind=engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-)
+engine = create_async_engine(DATABASE_URL, pool_pre_ping=True, pool_size=10, max_overflow=20)
+
+AsyncSessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 
 
 class Base(DeclarativeBase):
@@ -37,5 +29,6 @@ async def get_db() -> AsyncSession:
 
 
 async def init_db():
+    from app import models  # noqa: ensure models registered
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
