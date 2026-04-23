@@ -130,6 +130,28 @@ async def submit_answer(session_id: str, req: AnswerRequest, db: AsyncSession = 
     }
 
 
+@router.post("/interview/{session_id}/finish")
+async def finish_early(session_id: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(InterviewSession).where(InterviewSession.id == session_id))
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(404, "Session not found")
+    if session.completed:
+        pct = round(session.raw_score / session.max_score * 100, 1) if session.max_score else 0
+        return {"session_id": session_id, "score": round(session.raw_score or 0, 2), "total": session.max_score or 0, "percentage": pct}
+
+    answers = list(session.answers or [])
+    raw = sum(a["score"] for a in answers)
+    mx = len(session.questions) * MAX_SCORE_PER_Q
+    session.completed = True
+    session.completed_at = datetime.utcnow()
+    session.raw_score = raw
+    session.max_score = mx
+    await db.commit()
+    pct = round(raw / mx * 100, 1) if mx else 0
+    return {"session_id": session_id, "score": round(raw, 2), "total": mx, "percentage": pct}
+
+
 @router.get("/interview/{session_id}/result")
 async def get_result(session_id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(InterviewSession).where(InterviewSession.id == session_id))

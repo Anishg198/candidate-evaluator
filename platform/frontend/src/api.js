@@ -34,6 +34,7 @@ export const getM2AdminResults = () => get(`${M2}/module2/admin/results`).catch(
 const M3 = import.meta.env.VITE_MODULE3_URL || 'http://localhost:8003'
 export const startInterview = (body) => post(`${M3}/interview/start`, body)
 export const submitInterviewAnswer = (id, body) => post(`${M3}/interview/${id}/answer`, body)
+export const finishInterviewEarly = (id) => post(`${M3}/interview/${id}/finish`, {})
 export const getInterviewResult = (id) => get(`${M3}/interview/${id}/result`)
 export const getM3AdminResults = () => get(`${M3}/module3/admin/results`).catch(() => [])
 export const transcribeAudio = async (blob) => {

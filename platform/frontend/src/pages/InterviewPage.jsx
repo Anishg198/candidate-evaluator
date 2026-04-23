@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PipelineBar from '../components/PipelineBar'
 import BehaviorCamera from '../components/BehaviorCamera'
-import { startInterview, submitInterviewAnswer } from '../api'
+import { startInterview, submitInterviewAnswer, finishInterviewEarly } from '../api'
 import {
   Bot, User, ChevronRight, Loader2, CheckCircle2, AlertCircle, Send, Brain,
 } from 'lucide-react'
@@ -65,12 +65,21 @@ export default function InterviewPage() {
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [history])
 
-  const handleFinishEarly = () => {
+  const handleFinishEarly = async () => {
     window.speechSynthesis?.cancel()
     const behaviorScore = cameraRef.current?.getScore() ?? null
     if (behaviorScore !== null) localStorage.setItem('plt_behavior_interview', String(behaviorScore))
+    if (sessionId) {
+      try {
+        const data = await finishInterviewEarly(sessionId)
+        setResult(data)
+        localStorage.setItem(`plt_m3_session_${candidateId}`, sessionId)
+      } catch {
+        // still mark done locally even if backend call fails
+        localStorage.setItem(`plt_m3_session_${candidateId}`, sessionId)
+      }
+    }
     setCompleted(true)
-    setResult(null)
   }
 
   const handleSubmit = async () => {
