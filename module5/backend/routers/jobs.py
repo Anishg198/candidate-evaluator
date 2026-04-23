@@ -279,6 +279,19 @@ async def list_applications(db: AsyncSession = Depends(get_db)):
     ]
 
 
+@router.delete("/applications/{candidate_id}")
+async def delete_application(candidate_id: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Application).where(Application.candidate_id == candidate_id))
+    app = result.scalar_one_or_none()
+    if not app:
+        raise HTTPException(404, "Application not found")
+    if app.hr_decision != "rejected":
+        raise HTTPException(400, "Only rejected applications can be deleted")
+    await db.delete(app)
+    await db.commit()
+    return {"deleted": candidate_id}
+
+
 def _job_dict(j: Job) -> dict:
     return {
         "id": j.id,

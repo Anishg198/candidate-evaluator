@@ -44,23 +44,15 @@ export default function InterviewPage() {
 
   useEffect(() => {
     const init = async () => {
-      const name = candidateName !== 'Candidate' ? `, ${candidateName}` : ''
-      const welcome = [
-        `Welcome${name} to your AI-powered video interview${jobTitle ? ` for the ${jobTitle} position` : ''} at HCL.`,
-        `I'm your AI interviewer. Here's how this works.`,
-        `I'll ask you five questions — a mix of technical and behavioral — one at a time.`,
-        `You can respond by typing your answer in the text box below.`,
-        `Please note: your camera is active throughout the interview and is monitoring your engagement and confidence in real time. Stay within the frame and speak clearly.`,
-        `Take your time with each answer. When you're ready to submit, press the send button or use Control plus Enter.`,
-        `Let's begin.`,
-      ].join(' ')
-      speak(welcome)
       try {
         const data = await startInterview({ candidate_id: candidateId, name: candidateName, job_title: jobTitle, skills })
         setSessionId(data.session_id)
         setCurrentQ(data.question)
         setHistory([{ role: 'ai', text: data.question.text, skill: data.question.skill, category: data.question.category, qNum: data.question.number, total: data.question.total }])
-        setTimeout(() => speak(data.question.text), 8000)
+        const name = candidateName !== 'Candidate' ? `, ${candidateName}` : ''
+        const welcome = `Welcome${name} to your AI technical interview. I'll ask you ${data.question.total} questions. Type your answers and press send. Let's begin.`
+        speak(welcome)
+        setTimeout(() => speak(data.question.text), 4000)
       } catch {
         setError('Could not connect to interview service. You can skip to the coding test.')
       } finally {
@@ -93,7 +85,7 @@ export default function InterviewPage() {
       if (data.completed) {
         setCompleted(true)
         setResult(data.result)
-        localStorage.setItem('plt_m3_session', sessionId)
+        localStorage.setItem(`plt_m3_session_${candidateId}`, sessionId)
         const closing = "Great work! You've completed all the interview questions. Your responses have been recorded. Please continue to the coding test."
         setHistory((h) => [...h, { role: 'ai', text: closing, skill: '', category: 'system' }])
         speak(closing)
@@ -262,9 +254,12 @@ export default function InterviewPage() {
                   <p className={`text-2xl font-bold ${result.percentage >= 70 ? 'text-emerald-600 dark:text-emerald-400' : result.percentage >= 45 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>{result.percentage}%</p>
                 </div>
               )}
-              <button onClick={() => navigate('/instructions', { state: { testType: 'coding', nextPath: '/coding', nextState: null, meta: {} } })}
+              <button onClick={() => {
+                  const codingDone = localStorage.getItem(`plt_submitted_${candidateId}`) === 'true'
+                  navigate(codingDone ? '/report' : '/coding')
+                }}
                 className="w-full flex items-center justify-center gap-2 bg-indigo-500 hover:bg-indigo-400 text-white font-semibold py-3.5 rounded-xl transition-all shadow-lg shadow-indigo-500/25 cursor-pointer">
-                Continue to Coding Test <ChevronRight className="w-5 h-5" />
+                {localStorage.getItem(`plt_submitted_${candidateId}`) === 'true' ? 'View Final Report' : 'Continue to Coding Test'} <ChevronRight className="w-5 h-5" />
               </button>
             </div>
           )}

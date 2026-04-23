@@ -22,7 +22,7 @@ app = FastAPI(title="HCL Module 3 — AI Interview", version="2.0.0", lifespan=l
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
