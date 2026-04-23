@@ -62,6 +62,7 @@ export const getApplication = (candidateId) => get(`${M5}/applications/${candida
 export const getApplicationStatus = (candidateId) => get(`${M5}/applications/${candidateId}/status`)
 export const setHRDecision = (candidateId, body) => fetch(`${M5}/applications/${candidateId}/decision`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(json)
 export const listApplications = () => get(`${M5}/module5/admin/applications`).catch(() => [])
+export const deleteApplication = (candidateId) => fetch(`${M5}/applications/${candidateId}`, { method: 'DELETE' }).then(json)
 export const generateFinalReport = (body) => post(`${M5}/module5/report`, body)
 export const getFinalReport = (candidateId) => get(`${M5}/module5/report/${candidateId}`)
 export const getAllFinalReports = () => get(`${M5}/module5/admin/reports`).catch(() => [])

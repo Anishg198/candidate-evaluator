@@ -6,6 +6,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
+from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel
 
 from database import get_db, engine
@@ -61,8 +62,16 @@ async def start_session(req: StartRequest, db: AsyncSession = Depends(get_db)):
         required_count=REQUIRED_TO_ATTEMPT,
     )
     db.add(session)
-    await db.commit()
-    await db.refresh(session)
+    try:
+        await db.commit()
+        await db.refresh(session)
+    except IntegrityError:
+        # Race condition: another request inserted first — fetch and return that one
+        await db.rollback()
+        existing2 = await db.execute(
+            select(CodingSession).where(CodingSession.candidate_id == req.candidate_id)
+        )
+        session = existing2.scalar_one()
     return _session_response(session)
 
 

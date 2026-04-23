@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { getAllFinalReports, getM2AdminResults, getM4AdminResults, listApplications, createJob, toggleJob, listJobs, setHRDecision, getFinalReport } from '../api'
+import { getAllFinalReports, listApplications, createJob, toggleJob, listJobs, setHRDecision, getFinalReport, deleteApplication } from '../api'
 import {
   BarChart3, Users, Brain, Code2, ChevronLeft, Loader2, TrendingUp, AlertCircle,
   Plus, X, CheckCircle2, Briefcase, ToggleLeft, ToggleRight, ShieldCheck, Eye, EyeOff,
@@ -459,13 +459,59 @@ function JobForm({ onCreated }) {
   )
 }
 
+const DEC_BADGE = {
+  approved: 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-400',
+  rejected: 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-400',
+  pending: 'bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400',
+}
+
+function ApplicationRow({ app: a, onDelete }) {
+  const [deleting, setDeleting] = useState(false)
+  const canDelete = a.hr_decision === 'rejected'
+
+  const handleDelete = async () => {
+    if (!window.confirm(`Delete application for ${a.name || a.candidate_id}? This cannot be undone.`)) return
+    setDeleting(true)
+    try {
+      await deleteApplication(a.candidate_id)
+      onDelete(a.candidate_id)
+    } catch { setDeleting(false) }
+  }
+
+  return (
+    <div className="bg-white dark:bg-white/5 shadow-sm dark:shadow-none border border-slate-200 dark:border-white/10 rounded-2xl px-6 py-4 flex items-center gap-4">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-slate-800 dark:text-slate-200 font-semibold">{a.name || a.candidate_id}</p>
+          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border capitalize ${DEC_BADGE[a.hr_decision] || DEC_BADGE.pending}`}>{a.hr_decision || 'pending'}</span>
+        </div>
+        <p className="text-slate-500 text-xs mt-0.5">{a.email} · <span className="text-slate-600 dark:text-slate-400">{a.job_title}</span></p>
+        <p className="text-slate-400 dark:text-slate-600 text-xs font-mono mt-1">{a.candidate_id}</p>
+      </div>
+      <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex flex-wrap gap-1.5 max-w-[180px]">
+          {(a.merged_skills || []).slice(0, 3).map((s) => <span key={s} className="text-xs px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 text-indigo-700 dark:text-indigo-400">{s}</span>)}
+          {(a.merged_skills || []).length > 3 && <span className="text-xs text-slate-400">+{a.merged_skills.length - 3}</span>}
+        </div>
+        {canDelete && (
+          <button onClick={handleDelete} disabled={deleting}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 text-xs font-semibold hover:bg-red-100 dark:hover:bg-red-500/20 disabled:opacity-40 transition cursor-pointer">
+            {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />} Delete
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function HRDashboard() {
   const navigate = useNavigate()
   const [authed, setAuthed] = useState(() => sessionStorage.getItem(AUTH_KEY) === '1')
-  const [data, setData] = useState({ reports: [], written: [], coding: [], applications: [], jobs: [] })
+  const [data, setData] = useState({ reports: [], applications: [], jobs: [] })
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('jobs')
   const [showJobForm, setShowJobForm] = useState(false)
+  const [search, setSearch] = useState('')
 
   const logout = () => { sessionStorage.removeItem(AUTH_KEY); setAuthed(false) }
 
@@ -473,12 +519,10 @@ export default function HRDashboard() {
     if (!authed) return
     Promise.all([
       getAllFinalReports(),
-      getM2AdminResults(),
-      getM4AdminResults(),
       listApplications(),
       listJobs(),
-    ]).then(([reports, written, coding, applications, jobs]) => {
-      setData({ reports, written, coding, applications, jobs })
+    ]).then(([reports, applications, jobs]) => {
+      setData({ reports, applications, jobs })
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [authed])
@@ -495,15 +539,14 @@ export default function HRDashboard() {
     if (result) setData((d) => ({ ...d, jobs: d.jobs.map((j) => j.id === id ? { ...j, is_active: result.is_active } : j) }))
   }
 
-  const avgScore = data.reports.length > 0 ? Math.round(data.reports.reduce((s, r) => s + r.final_score, 0) / data.reports.length) : 0
+  const approvedCount = data.applications.filter((a) => a.hr_decision === 'approved').length
+  const rejectedCount = data.applications.filter((a) => a.hr_decision === 'rejected').length
   const hireCount = data.reports.filter((r) => ['strong_hire', 'hire'].includes(r.recommendation)).length
 
   const TABS = [
     ['jobs', 'Job Postings', data.jobs.length],
     ['applications', 'Applications', data.applications.length],
     ['final', 'Final Reports', data.reports.length],
-    ['written', 'Written Tests', data.written.length],
-    ['coding', 'Coding Tests', data.coding.length],
   ]
 
   return (
@@ -525,13 +568,12 @@ export default function HRDashboard() {
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
           {[
             { label: 'Open Jobs', value: data.jobs.filter((j) => j.is_active).length, icon: Briefcase, color: 'text-indigo-600 dark:text-indigo-400' },
             { label: 'Applications', value: data.applications.length, icon: Users, color: 'text-sky-600 dark:text-sky-400' },
-            { label: 'Avg Score', value: `${avgScore}/100`, icon: TrendingUp, color: 'text-violet-600 dark:text-violet-400' },
-            { label: 'Hire / Strong Hire', value: hireCount, icon: Brain, color: 'text-emerald-600 dark:text-emerald-400' },
-            { label: 'Coding Tests', value: data.coding.length, icon: Code2, color: 'text-amber-600 dark:text-amber-400' },
+            { label: 'Approved', value: approvedCount, icon: CheckCircle2, color: 'text-emerald-600 dark:text-emerald-400' },
+            { label: 'Rejected', value: rejectedCount, icon: Brain, color: 'text-red-600 dark:text-red-400' },
           ].map((s) => (
             <div key={s.label} className="bg-white dark:bg-white/5 shadow-sm dark:shadow-none border border-slate-200 dark:border-white/10 rounded-2xl p-5">
               <div className="flex items-center gap-2 mb-2"><s.icon className={`w-4 h-4 ${s.color}`} /><p className="text-slate-500 text-xs">{s.label}</p></div>
@@ -592,23 +634,42 @@ export default function HRDashboard() {
 
             {/* Applications tab */}
             {activeTab === 'applications' && (
-              data.applications.length === 0
-                ? <div className="text-center py-16 text-slate-400"><Users className="w-10 h-10 mx-auto mb-3 opacity-30" /><p>No applications yet.</p></div>
-                : <div className="space-y-3">
-                  {data.applications.map((a) => (
-                    <div key={a.candidate_id} className="bg-white dark:bg-white/5 shadow-sm dark:shadow-none border border-slate-200 dark:border-white/10 rounded-2xl px-6 py-4 flex items-center gap-4">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-slate-800 dark:text-slate-200 font-semibold">{a.name || a.candidate_id}</p>
-                        <p className="text-slate-500 text-xs mt-0.5">{a.email} · Applied for <span className="text-slate-600 dark:text-slate-400">{a.job_title}</span></p>
-                        <p className="text-slate-400 dark:text-slate-600 text-xs font-mono mt-1">{a.candidate_id}</p>
+              <div className="space-y-4">
+                {/* Search bar */}
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search by name, email, candidate ID…"
+                  className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition text-sm"
+                />
+                {data.applications.length === 0
+                  ? <div className="text-center py-16 text-slate-400"><Users className="w-10 h-10 mx-auto mb-3 opacity-30" /><p>No applications yet.</p></div>
+                  : (() => {
+                    const q = search.toLowerCase()
+                    const filtered = q
+                      ? data.applications.filter((a) =>
+                          (a.name || '').toLowerCase().includes(q) ||
+                          (a.email || '').toLowerCase().includes(q) ||
+                          (a.candidate_id || '').toLowerCase().includes(q))
+                      : data.applications
+                    if (filtered.length === 0) return (
+                      <div className="text-center py-10 text-slate-400">No results for "{search}"</div>
+                    )
+                    return (
+                      <div className="space-y-3">
+                        {filtered.map((a) => (
+                          <ApplicationRow
+                            key={a.candidate_id}
+                            app={a}
+                            onDelete={(id) => setData((d) => ({ ...d, applications: d.applications.filter((x) => x.candidate_id !== id) }))}
+                          />
+                        ))}
                       </div>
-                      <div className="flex flex-wrap gap-1.5 flex-shrink-0 max-w-xs">
-                        {(a.merged_skills || []).slice(0, 4).map((s) => <span key={s} className="text-xs px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 text-indigo-700 dark:text-indigo-400">{s}</span>)}
-                        {(a.merged_skills || []).length > 4 && <span className="text-xs text-slate-400">{`+${a.merged_skills.length - 4}`}</span>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    )
+                  })()
+                }
+              </div>
             )}
 
             {/* Final reports tab */}
@@ -627,36 +688,6 @@ export default function HRDashboard() {
                 </div>
             )}
 
-            {/* Written tab */}
-            {activeTab === 'written' && (
-              data.written.length === 0
-                ? <div className="text-center py-16 text-slate-400"><AlertCircle className="w-10 h-10 mx-auto mb-3 opacity-30" /><p>No written test results.</p></div>
-                : <div className="space-y-3">
-                  {data.written.map((r, i) => (
-                    <div key={i} className="bg-white dark:bg-white/5 shadow-sm dark:shadow-none border border-slate-200 dark:border-white/10 rounded-2xl px-6 py-4 flex items-center gap-4">
-                      <div className="flex-1"><p className="text-slate-800 dark:text-slate-200 font-semibold">{r.name || r.candidate_id}</p><p className="text-slate-500 text-xs">{r.candidate_id}</p></div>
-                      <div className="text-right"><p className="text-slate-900 dark:text-slate-100 font-bold">{Math.round(r.total_score || r.percentage || 0)}%</p><p className="text-slate-500 text-xs">{Math.round(r.raw_score || 0)}/{Math.round(r.max_score || 0)} pts</p></div>
-                    </div>
-                  ))}
-                </div>
-            )}
-
-            {/* Coding tab */}
-            {activeTab === 'coding' && (
-              data.coding.length === 0
-                ? <div className="text-center py-16 text-slate-400"><AlertCircle className="w-10 h-10 mx-auto mb-3 opacity-30" /><p>No coding test results.</p></div>
-                : <div className="space-y-3">
-                  {data.coding.map((r, i) => (
-                    <div key={i} className="bg-white dark:bg-white/5 shadow-sm dark:shadow-none border border-slate-200 dark:border-white/10 rounded-2xl px-6 py-4 flex items-center gap-4">
-                      <div className="flex-1"><p className="text-slate-800 dark:text-slate-200 font-semibold">{r.name || r.candidate_id}</p><p className="text-slate-500 text-xs">{r.candidate_id}</p></div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-center"><p className="text-slate-500 text-xs">Solved</p><p className="text-slate-800 dark:text-slate-200 font-bold">{r.problems_solved}/{r.total_problems}</p></div>
-                        <div className="text-center"><p className="text-slate-500 text-xs">Score</p><ScoreBadge score={r.total_score} /></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-            )}
           </>
         )}
       </div>

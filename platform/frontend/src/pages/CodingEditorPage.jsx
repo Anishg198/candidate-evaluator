@@ -1,10 +1,11 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getProblem, runCode, submitCode } from '../api'
 import PipelineBar from '../components/PipelineBar'
 import CodeEditor, { DEFAULT_CODE } from '../components/CodeEditor'
 import LanguageSelector, { LANGUAGES } from '../components/LanguageSelector'
 import TestResults from '../components/TestResults'
+import BehaviorCamera from '../components/BehaviorCamera'
 import { ArrowLeft, Play, Send, Loader2, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react'
 
 const DIFF_STYLES = {
@@ -28,6 +29,7 @@ export default function CodingEditorPage() {
   const { problemId } = useParams()
   const navigate = useNavigate()
   const candidateId = localStorage.getItem('plt_candidate_id') || 'anonymous'
+  const cameraRef = useRef(null)
 
   const [problem, setProblem] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -92,6 +94,7 @@ export default function CodingEditorPage() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ height: '100vh' }}>
+      <div className="fixed bottom-4 right-4 z-50"><BehaviorCamera ref={cameraRef} compact /></div>
       <PipelineBar currentStep={4} />
 
       <header className="flex-shrink-0 flex items-center gap-3 px-4 py-3 border-b border-slate-200 dark:border-white/10 bg-white/90 dark:bg-black/30 backdrop-blur">
