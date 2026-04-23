@@ -8,6 +8,7 @@ An end-to-end automated hiring pipeline: CV upload → written test → AI inter
 
 ```
 platform/frontend   React + Vite UI               http://localhost:5175
+module1/backend     CV parsing API (FastAPI)       http://localhost:8000
 module2/backend     Written test API (FastAPI)     http://localhost:8002
 module3/backend     Interview API (FastAPI)        http://localhost:8003
 module4/backend     Coding test API (FastAPI)      http://localhost:8004
@@ -63,6 +64,16 @@ Judge0 runs on `http://localhost:2358` by default.
 
 Open a separate terminal for each service.
 
+### Module 1 — CV Parsing
+
+```bash
+cd module1/backend
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+
+uvicorn app.main:app --port 8000 --reload
+```
+
 ### Module 2 — Written Test
 
 ```bash
@@ -73,8 +84,6 @@ pip install -r requirements.txt
 DATABASE_URL=postgresql+asyncpg://hcl_user:hcl_pass@localhost:5432/hcl_db \
 uvicorn app.main:app --port 8002 --reload
 ```
-
-> First startup downloads the `flan-t5-base` model (~300 MB). Subsequent starts are instant.
 
 ### Module 3 — AI Interview
 
@@ -114,6 +123,7 @@ pip install -r requirements.txt
 
 DATABASE_URL=postgresql+asyncpg://hcl_user:hcl_pass@localhost:5432/hcl_db \
 MODULE2_URL=http://localhost:8002 \
+MODULE3_URL=http://localhost:8003 \
 MODULE4_URL=http://localhost:8004 \
 uvicorn main:app --port 8005 --reload
 ```
@@ -169,6 +179,7 @@ Python · JavaScript · Java · C++ · C · TypeScript · Go · Rust · Kotlin �
 | Service | Port |
 |---------|------|
 | Platform Frontend (dev) | 5175 |
+| Module 1 — CV Parsing | 8000 |
 | Module 2 — Written Test | 8002 |
 | Module 3 — Interview | 8003 |
 | Module 4 — Coding | 8004 |
@@ -193,15 +204,13 @@ VITE_MODULE5_URL=http://localhost:8005
 
 **Backends:** FastAPI, SQLAlchemy (async), PostgreSQL, Uvicorn
 
-**AI / ML:** flan-t5-base (question generation, local CPU), sentence-transformers (answer grading), curated keyword scoring (interview)
+**AI / ML:** Curated question bank (written test generation), keyword-based scoring (interview grading), face-api (behavioural proctoring)
 
 **Code Execution:** Judge0 CE (self-hosted)
 
 ---
 
 ## Troubleshooting
-
-**Module 2 slow to start** — downloading `flan-t5-base` on first run. Wait for `Application startup complete` before running tests.
 
 **Coding submissions fail** — Judge0 takes ~30 seconds to be ready after starting. Wait and retry.
 
