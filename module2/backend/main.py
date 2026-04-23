@@ -7,6 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import create_all_tables
 from routers.tests import router as tests_router
 from routers.results import router as results_router
+from routers.resume import router as resume_router
+from routers.admin import router as admin_router
 from services.generator import load_model
 from services.grader import load_sentence_model
 
@@ -45,6 +47,8 @@ app.add_middleware(
 
 app.include_router(tests_router)
 app.include_router(results_router)
+app.include_router(resume_router)
+app.include_router(admin_router)
 
 
 @app.get("/health")

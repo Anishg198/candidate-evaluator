@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     livekit_api_secret: str = "secret"
     livekit_public_ws_url: str = "ws://localhost:7880"
 
+    # OpenAI
+    openai_api_key: str = ""
+
     # App
     app_name: str = "HCL Module 3 - Technical Interview"
     debug: bool = False

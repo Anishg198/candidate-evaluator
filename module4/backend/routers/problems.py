@@ -22,6 +22,11 @@ class SubmitRequest(BaseModel):
     source_code: str
 
 
+class RunRequest(BaseModel):
+    language_id: int
+    source_code: str
+
+
 @router.get("/problems")
 async def list_problems(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Problem).order_by(Problem.created_at))
@@ -57,6 +62,61 @@ async def get_problem(problem_id: str, db: AsyncSession = Depends(get_db)):
         "time_limit_seconds": p.time_limit_seconds,
         "memory_limit_mb": p.memory_limit_mb,
         "starter_code": p.starter_code or {},
+    }
+
+
+@router.post("/problems/{problem_id}/run")
+async def run_code(problem_id: str, req: RunRequest, db: AsyncSession = Depends(get_db)):
+    """Run code against visible test cases only — no DB save."""
+    if req.language_id not in SUPPORTED_LANGUAGES:
+        raise HTTPException(400, f"Language {req.language_id} not supported.")
+
+    result = await db.execute(select(Problem).where(Problem.id == problem_id))
+    problem = result.scalar_one_or_none()
+    if not problem:
+        raise HTTPException(404, "Problem not found")
+
+    wrapper = (problem.wrappers or {}).get(str(req.language_id), "")
+    full_code = req.source_code + wrapper
+
+    async def run_one(tc: dict) -> dict:
+        judge_result = await submit_and_wait(
+            source_code=full_code,
+            language_id=req.language_id,
+            stdin=tc.get("input", ""),
+            expected_output=tc.get("expected_output", ""),
+            time_limit=problem.time_limit_seconds,
+            memory_limit=problem.memory_limit_mb,
+        )
+        actual = judge_result["stdout"].strip()
+        expected = tc.get("expected_output", "").strip()
+        is_passed = actual == expected and judge_result["status_id"] not in (5, 6, 11)
+        return {
+            "test_case_id": tc.get("id"),
+            "hidden": False,
+            "passed": is_passed,
+            "status": judge_result["status"],
+            "time_ms": judge_result["time_ms"],
+            "memory_kb": judge_result["memory_kb"],
+            "input": tc.get("input", ""),
+            "expected_output": expected,
+            "actual_output": actual,
+            "compile_output": judge_result.get("compile_output", ""),
+            "stderr": judge_result.get("stderr", ""),
+        }
+
+    raw_results = await asyncio.gather(*[run_one(tc) for tc in problem.visible_test_cases])
+    test_results = list(raw_results)
+    passed = sum(1 for e in test_results if e["passed"])
+    total = len(test_results)
+
+    return {
+        "status": "Accepted" if passed == total else ("Partial" if passed > 0 else "Failed"),
+        "passed_tests": passed,
+        "total_tests": total,
+        "score": round((passed / total * 100) if total > 0 else 0, 1),
+        "test_results": test_results,
+        "dry_run": True,
     }
 
 
@@ -101,7 +161,7 @@ async def submit_code(problem_id: str, req: SubmitRequest, db: AsyncSession = De
         )
         actual = judge_result["stdout"].strip()
         expected = tc.get("expected_output", "").strip()
-        is_passed = judge_result["status_id"] == 3 or actual == expected
+        is_passed = actual == expected and judge_result["status_id"] not in (5, 6, 11)
         entry = {
             "test_case_id": tc.get("id"),
             "hidden": tc["hidden"],

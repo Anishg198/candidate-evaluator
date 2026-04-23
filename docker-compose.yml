@@ -150,6 +150,43 @@ services:
     depends_on:
       - module3-backend
 
+  # ─────────────────────────────────────────
+  # Module 5 — Final Evaluation Report
+  # ─────────────────────────────────────────
+  module5-backend:
+    build:
+      context: ./module5/backend
+      dockerfile: Dockerfile
+    container_name: hcl_module5_backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://hcl_user:hcl_pass@postgres:5432/hcl_db
+      MODULE2_URL: http://module2-backend:8002
+      MODULE4_URL: http://module4-backend:8004
+    ports:
+      - "8005:8005"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      module2-backend:
+        condition: service_started
+      module4-backend:
+        condition: service_started
+
+  # ─────────────────────────────────────────
+  # Platform — Unified Frontend (M1+M2+M4+M5)
+  # ─────────────────────────────────────────
+  platform-frontend:
+    build:
+      context: ./platform/frontend
+      dockerfile: Dockerfile
+    container_name: hcl_platform_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - module5-backend
+
   judge0:
     image: judge0/judge0:1.13.1
     container_name: hcl_judge0

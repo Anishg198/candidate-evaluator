@@ -1,222 +1,289 @@
-# HCL AI-Powered Candidate Evaluation Platform
+# CandEvalAI — AI-Powered Candidate Evaluation Platform
 
-Internship Project 4 — A full-stack, AI-powered candidate evaluation system.
+An end-to-end automated hiring pipeline that takes a candidate from CV submission through a written test, AI technical interview, and live coding assessment, then compiles a final evaluation report for HR review.
 
-## Modules
-
-| Module | Name | Status | Port (Backend) | Port (Frontend) |
-|--------|------|--------|----------------|-----------------|
-| Module 2 | Dynamic Written Test | ✅ Complete | 8002 | 3002 |
-| Module 3 | Video Interview + Facial Analysis | ✅ Complete | 8003 | 3003 |
-| Module 4 | Online Coding Test | ✅ Complete | 8004 | 3004 |
+---
 
 ## Architecture Overview
 
 ```
-                    ┌─────────────────────────────────┐
-                    │         PostgreSQL 16            │
-                    │         (shared DB)              │
-                    └────────┬──────────┬─────────────┘
-                             │          │
-              ┌──────────────┘          └──────────────┐
-              │                                        │
-   ┌──────────▼──────────┐              ┌──────────────▼──────────┐
-   │   Module 2 Backend  │              │   Module 4 Backend      │
-   │   FastAPI :8002     │              │   FastAPI :8004         │
-   │   flan-t5-base      │              │   httpx → Judge0 CE     │
-   │   sentence-xformers │              │                         │
-   └──────────┬──────────┘              └──────────────┬──────────┘
-              │                                        │
-   ┌──────────▼──────────┐              ┌──────────────▼──────────┐
-   │  Module 2 Frontend  │              │  Module 4 Frontend      │
-   │  React+Vite :3002   │              │  React+Vite :3004       │
-   │  Timed MCQ + SA UI  │              │  Monaco Editor UI       │
-   └─────────────────────┘              └──────────────┬──────────┘
-                                                       │
-                                        ┌──────────────▼──────────┐
-                                        │   Judge0 CE :2358       │
-                                        │   (code execution)      │
-                                        │   + Redis + Postgres    │
-                                        └─────────────────────────┘
+platform/frontend          →  Unified React UI (port 3000 / 5175 dev)
+├── module1                →  CV upload & application (port 8001 / 3001)
+├── module2/backend        →  Written test API — AI-generated MCQ + short answer (port 8002)
+├── module3/backend        →  Technical interview API — conversational AI (port 8003)
+├── module4/backend        →  Coding test API — Judge0 execution engine (port 8004)
+└── module5/backend        →  Final report aggregator (port 8005)
+
+Infrastructure
+├── PostgreSQL 16          →  Shared database (port 5433)
+└── Judge0 CE              →  Self-hosted code execution sandbox (port 2358)
 ```
 
-## Quick Start
+**Candidate pipeline:** Apply → Written Test → AI Interview → Coding Test → Final Report
 
-### Prerequisites
-- Docker Desktop (with Docker Compose v2)
-- 8GB RAM recommended (Judge0 + ML models)
+**HR portal:** `/hr` — password `HCL@2024`
 
-### 1. Clone / navigate to project
+---
+
+## Prerequisites
+
+| Tool | Version | Notes |
+|------|---------|-------|
+| Docker | 24+ | Required for full-stack run |
+| Docker Compose | v2+ | `docker compose` or `docker-compose` |
+| Node.js | 18+ | Frontend dev only |
+| Python | 3.10+ | Backend dev only |
+| Git | any | |
+
+---
+
+## Quick Start (Docker — Recommended)
+
+### 1. Clone the repo
+
 ```bash
-cd hcl_project_4
+git clone https://github.com/Anishg198/candidate-evaluator.git
+cd candidate-evaluator
 ```
 
 ### 2. Start everything
+
 ```bash
-docker compose up -d --build
+docker compose up --build
 ```
 
-> First run will download ~2GB of ML models (flan-t5-base + sentence-transformers).
-> They are cached in a Docker volume so subsequent starts are fast.
+This starts all services: PostgreSQL, Judge0, all 5 module backends, and the platform frontend.
 
-### 3. Wait for services
+> **First run takes 5–10 minutes** — module2 downloads AI models (~500 MB) and Judge0 initialises its worker.
+
+### 3. Open the app
+
+```
+http://localhost:3000
+```
+
+HR Portal: `http://localhost:3000/hr` — password: `HCL@2024`
+
+---
+
+## Local Development Setup
+
+Run each service individually for hot-reload development.
+
+### Step 1 — Start infrastructure only (Docker)
+
 ```bash
-docker compose ps
+docker compose up postgres judge0 judge0-worker judge0-redis judge0-postgres -d
 ```
 
-All services should show `healthy` or `running`. Judge0 takes ~60 seconds to initialize.
+Wait ~30 seconds for Judge0 to initialise.
 
-### 4. Access the apps
+### Step 2 — Module 2 Backend (Written Test)
 
-| App | URL |
-|-----|-----|
-| Module 2 (Written Test) | http://localhost:3002 |
-| Module 4 (Coding Test) | http://localhost:3004 |
-| Module 2 API docs | http://localhost:8002/docs |
-| Module 4 API docs | http://localhost:8004/docs |
-| Judge0 API | http://localhost:2358 |
-
----
-
-## Module 2 — Dynamic Written Test
-
-### What it does
-1. Accepts candidate info + skill list (Python, SQL, Java, etc.)
-2. Uses **flan-t5-base** (local, CPU-only) to generate MCQ and short-answer questions
-3. Serves a **timed test** (30 min default) via React frontend
-4. Auto-grades MCQs; grades short answers via **cosine similarity** (all-MiniLM-L6-v2)
-5. Stores all results in PostgreSQL
-
-### Module 5 Contract
-```
-GET http://localhost:8002/module2/result/{candidate_id}
-```
-Response:
-```json
-{
-  "candidate_id": "...",
-  "score": 72.5,
-  "total": 100,
-  "breakdown": [
-    {"skill": "Python", "questions_attempted": 3, "questions_correct": 2, "points": 25, "max_points": 30}
-  ]
-}
-```
-
----
-
-## Module 4 — Online Coding Test
-
-### What it does
-1. Presents programming problems in a **Monaco editor** (LeetCode-style UI)
-2. Submits code to **self-hosted Judge0 CE** for sandboxed execution
-3. Runs against visible + hidden test cases; shows pass/fail per case
-4. Computes code quality heuristics (comment ratio, line length, naming conventions)
-5. Logs all submissions, time taken, and attempt counts
-
-### Supported Languages
-| Language | Judge0 ID |
-|----------|-----------|
-| Python 3 | 71 |
-| JavaScript | 63 |
-| Java | 62 |
-| C++ | 54 |
-
-### Module 5 Contract
-```
-GET http://localhost:8004/module4/result/{candidate_id}
-```
-Response:
-```json
-{
-  "candidate_id": "...",
-  "problems_attempted": 2,
-  "problems_solved": 1,
-  "total_score": 66.7,
-  "submissions": [...]
-}
-```
-
----
-
-## Development (without Docker)
-
-### Module 2 Backend
 ```bash
 cd module2/backend
-python -m venv .venv && source .venv/bin/activate  # or .venv\Scripts\activate on Windows
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env  # edit DATABASE_URL to point to local postgres
-uvicorn main:app --reload --port 8002
+DATABASE_URL=postgresql+asyncpg://hcl_user:hcl_pass@localhost:5433/hcl_db \
+uvicorn app.main:app --port 8002 --reload
 ```
 
-### Module 2 Frontend
+### Step 3 — Module 3 Backend (AI Interview)
+
 ```bash
-cd module2/frontend
-npm install
-VITE_API_URL=http://localhost:8002 npm run dev
+cd module3/backend
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+DATABASE_URL=postgresql+asyncpg://hcl_user:hcl_pass@localhost:5433/hcl_db \
+uvicorn app.main:app --port 8003 --reload
 ```
 
-### Module 4 Backend
+### Step 4 — Module 4 Backend (Coding Test)
+
 ```bash
 cd module4/backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env
-uvicorn main:app --reload --port 8004
-# Seed sample problems:
+DATABASE_URL=postgresql+asyncpg://hcl_user:hcl_pass@localhost:5433/hcl_db \
+JUDGE0_URL=http://localhost:2358 \
+uvicorn main:app --port 8004 --reload
+```
+
+Seed coding problems (first time only):
+
+```bash
 python seed.py
 ```
 
-### Module 4 Frontend
+### Step 5 — Module 5 Backend (Final Report)
+
 ```bash
-cd module4/frontend
-npm install
-VITE_API_URL=http://localhost:8004 npm run dev
+cd module5/backend
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+DATABASE_URL=postgresql+asyncpg://hcl_user:hcl_pass@localhost:5433/hcl_db \
+MODULE2_URL=http://localhost:8002 \
+MODULE4_URL=http://localhost:8004 \
+uvicorn main:app --port 8005 --reload
 ```
 
-### Judge0 CE (standalone)
-See [module4/judge0/README.md](module4/judge0/README.md)
+### Step 6 — Platform Frontend
+
+```bash
+cd platform/frontend
+npm install
+npm run dev
+```
+
+App runs at `http://localhost:5175`
 
 ---
 
 ## Environment Variables
 
-### Module 2 Backend
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | — | asyncpg connection string |
-| `MODEL_CACHE_DIR` | `/app/model_cache` | Where HuggingFace models are cached |
+### Module 2 (Written Test)
 
-### Module 4 Backend
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATABASE_URL` | — | asyncpg connection string |
-| `JUDGE0_URL` | `http://judge0:2358` | Judge0 CE base URL |
+| `DATABASE_URL` | — | PostgreSQL async URL |
+| `MODEL_CACHE_DIR` | `/app/model_cache` | Where AI models are cached |
+
+### Module 3 (Interview)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_URL` | — | PostgreSQL async URL |
+
+### Module 4 (Coding Test)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_URL` | — | PostgreSQL async URL |
+| `JUDGE0_URL` | `http://localhost:2358` | Judge0 execution engine URL |
+
+### Module 5 (Final Report)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_URL` | — | PostgreSQL async URL |
+| `MODULE2_URL` | `http://localhost:8002` | Written test service URL |
+| `MODULE4_URL` | `http://localhost:8004` | Coding test service URL |
+
+### Platform Frontend (Vite env vars)
+
+Create `platform/frontend/.env.local` if backends run on non-default ports:
+
+```env
+VITE_MODULE2_URL=http://localhost:8002
+VITE_MODULE3_URL=http://localhost:8003
+VITE_MODULE4_URL=http://localhost:8004
+VITE_MODULE5_URL=http://localhost:8005
+```
 
 ---
 
-## Stopping & Cleanup
+## Database
+
+PostgreSQL credentials (Docker):
+
+```
+Host:     localhost
+Port:     5433
+User:     hcl_user
+Password: hcl_pass
+Database: hcl_db
+```
+
+All backends auto-create their tables on startup via SQLAlchemy `create_all`.
+
+---
+
+## Service Ports Reference
+
+| Service | Port | URL |
+|---------|------|-----|
+| Platform Frontend | 3000 (Docker) / 5175 (dev) | Main candidate + HR UI |
+| Module 2 Backend | 8002 | Written test API |
+| Module 3 Backend | 8003 | Interview API |
+| Module 4 Backend | 8004 | Coding test API |
+| Module 5 Backend | 8005 | Final report API |
+| PostgreSQL | 5433 | Shared DB |
+| Judge0 | 2358 | Code execution |
+
+---
+
+## HR Portal
+
+URL: `/hr`
+Password: `HCL@2024`
+
+Features:
+- Create and manage job postings (title, description, difficulty, skills, question count)
+- View all applications and candidate pipeline progress
+- Read full AI-generated evaluation reports per candidate
+- See written test and coding test scores
+- Set HR decisions (Approve / Reject) per candidate
+
+---
+
+## Candidate Flow
+
+1. **Apply** — candidate finds an open job on the home page and submits their CV + details
+2. **Instructions** — pre-test checklist (camera check, environment guidelines, test details)
+3. **Written Test** — AI generates personalised MCQ + short-answer questions based on CV skills
+4. **AI Interview** — conversational text-based interview with 5 AI-generated questions
+5. **Coding Test** — algorithmic problems executed live via Judge0 in multiple languages
+6. **Final Report** — aggregated score + AI recommendation sent to HR dashboard
+
+Candidates get a unique **Candidate ID** on applying — use it on the home page to resume the pipeline if they drop off.
+
+---
+
+## Supported Coding Languages
+
+Python · JavaScript · Java · C++ · C · TypeScript · Go · Rust · Kotlin · Ruby · Swift
+
+---
+
+## Tech Stack
+
+**Frontend:** React 18 · Vite · Tailwind CSS · React Router · Monaco Editor · Lucide Icons
+
+**Backends:** FastAPI · SQLAlchemy (async) · PostgreSQL 16 · Uvicorn
+
+**AI / ML:** Sentence Transformers (written test grading) · Rule-based NLP scoring (interview)
+
+**Code Execution:** Judge0 CE (self-hosted)
+
+**Infrastructure:** Docker · Docker Compose
+
+---
+
+## Stopping Services
+
 ```bash
-# Stop all services (keep data)
+# Stop all containers
 docker compose down
 
-# Stop and remove all data (full reset)
+# Stop and remove volumes (wipes database — fresh start)
 docker compose down -v
 ```
 
 ---
 
-## Tech Stack Summary
+## Troubleshooting
 
-| Layer | Module 2 | Module 4 |
-|-------|----------|----------|
-| Backend | FastAPI | FastAPI |
-| ORM | SQLAlchemy 2.0 async | SQLAlchemy 2.0 async |
-| DB Driver | asyncpg | asyncpg |
-| Database | PostgreSQL 16 | PostgreSQL 16 |
-| AI/ML | flan-t5-base, all-MiniLM-L6-v2 | — |
-| Code Execution | — | Judge0 CE (self-hosted) |
-| Frontend | React 18 + Vite + Tailwind | React 18 + Vite + Tailwind |
-| UI Theme | Dark glassmorphism | Dark glassmorphism |
-| Font | Plus Jakarta Sans | Plus Jakarta Sans + JetBrains Mono |
+**Module 2 slow to start** — downloads transformer models on first run (~500 MB). Wait for `Application startup complete` in logs before using the written test.
+
+**Judge0 returns errors** — give it 30–60 seconds to initialise after `docker compose up`. The worker needs time to connect to Redis and Postgres.
+
+**Port already in use** — stop the conflicting process or change the host port mapping in `docker-compose.yml` (left side of `ports:`).
+
+**Database connection refused** — check PostgreSQL is healthy before starting backends:
+```bash
+docker compose ps postgres
+```
+
+**Camera not working** — browsers require a secure context (HTTPS or `localhost`) for camera access. Always access the app via `http://localhost` not via a LAN IP address.
+
+**Written test has no questions** — HR must create a job posting first via the HR portal. The question bank is seeded from the job's skill tags.

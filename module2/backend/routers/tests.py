@@ -1,4 +1,5 @@
 import uuid
+import asyncio
 from datetime import datetime
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
@@ -64,12 +65,16 @@ async def generate_test(req: GenerateRequest, db: AsyncSession = Depends(get_db)
         candidate = Candidate(id=req.candidate_id, name=req.name, email=req.email)
         db.add(candidate)
 
-    # Generate questions per skill
-    qs_per_skill = max(1, req.num_questions // len(req.skills))
+    # Distribute questions evenly across skills, spreading the remainder
+    num_skills = len(req.skills)
+    base = req.num_questions // num_skills
+    remainder = req.num_questions % num_skills
+    # First `remainder` skills get one extra question
+    counts = [max(1, base + (1 if i < remainder else 0)) for i in range(num_skills)]
     all_question_ids = []
 
-    for skill in req.skills:
-        generated = generate_questions(skill, req.difficulty, qs_per_skill)
+    for skill, count in zip(req.skills, counts):
+        generated = await asyncio.to_thread(generate_questions, skill, req.difficulty, count)
         for g in generated:
             q = Question(
                 id=str(uuid.uuid4()),

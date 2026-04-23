@@ -6,6 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import create_all_tables
 from routers.problems import router as problems_router
 from routers.results import router as results_router
+from routers.session import router as session_router
+from routers.admin import router as admin_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -43,6 +45,8 @@ app.add_middleware(
 
 app.include_router(problems_router)
 app.include_router(results_router)
+app.include_router(session_router)
+app.include_router(admin_router)
 
 
 @app.get("/health")
