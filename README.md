@@ -29,14 +29,11 @@ Judge0 CE           Code execution engine          http://localhost:2358
 - Python 3.10+
 - Node.js 18+
 - PostgreSQL 14+
-- Docker + Docker Compose — required for Judge0 CE
-- Judge0 CE (self-hosted) — for code execution
+- Docker + Docker Compose — required for Judge0 CE only
 
 ---
 
-## Database Setup
-
-Create the database and user in PostgreSQL:
+## Step 1 — Database Setup
 
 ```sql
 CREATE USER hcl_user WITH PASSWORD 'hcl_pass';
@@ -48,9 +45,9 @@ All backends auto-create their tables on first startup — no migrations needed.
 
 ---
 
-## Judge0 Setup (Code Execution)
+## Step 2 — Judge0 Setup (Code Execution)
 
-Judge0 CE bundles its own PostgreSQL and Redis — runs entirely in Docker.
+Judge0 CE runs in Docker (only this service uses Docker).
 
 ```bash
 wget https://github.com/judge0/judge0/releases/download/v1.13.1/judge0-v1.13.1.zip
@@ -58,34 +55,32 @@ unzip judge0-v1.13.1.zip
 cd judge0-v1.13.1
 ```
 
-Generate two passwords and paste them into `judge0.conf`:
+Open `judge0.conf` and set two passwords:
 
 ```
-REDIS_PASSWORD=<any-password>
-POSTGRES_PASSWORD=<any-password>
+REDIS_PASSWORD=yourpassword
+POSTGRES_PASSWORD=yourpassword
 ```
 
-Then start:
+Start Judge0:
 
 ```bash
 docker-compose up -d db redis
 sleep 10
 docker-compose up -d
-sleep 5
 ```
 
-Judge0 runs on `http://localhost:2358`. It takes ~30 seconds to be fully ready after startup.
+Verify it's running (wait ~30s after start):
 
 ```bash
-# Verify it's up
 curl http://localhost:2358/languages | head -c 100
 ```
 
 ---
 
-## Running the Backends
+## Step 3 — Run the Backends
 
-Open a separate terminal for each service.
+Open a **separate terminal** for each. All commands run from the repo root.
 
 ### Module 1 — CV Parsing
 
@@ -93,8 +88,7 @@ Open a separate terminal for each service.
 cd module1/backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-
-uvicorn app.main:app --port 8000 --reload
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ### Module 2 — Written Test
@@ -103,10 +97,9 @@ uvicorn app.main:app --port 8000 --reload
 cd module2/backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-
 DATABASE_URL=postgresql+asyncpg://hcl_user:hcl_pass@localhost:5432/hcl_db \
 MODEL_CACHE_DIR=/tmp/model_cache \
-uvicorn main:app --port 8002 --reload
+uvicorn main:app --host 0.0.0.0 --port 8002 --reload --timeout-keep-alive 300
 ```
 
 **First startup only:** downloads `all-MiniLM-L6-v2` (~90 MB). Subsequent starts are instant.
@@ -117,9 +110,8 @@ uvicorn main:app --port 8002 --reload
 cd module3/backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-
 DATABASE_URL=postgresql+asyncpg://hcl_user:hcl_pass@localhost:5432/hcl_db \
-uvicorn app.main:app --port 8003 --reload
+uvicorn app.main:app --host 0.0.0.0 --port 8003 --reload
 ```
 
 ### Module 4 — Coding Test
@@ -128,10 +120,9 @@ uvicorn app.main:app --port 8003 --reload
 cd module4/backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-
 DATABASE_URL=postgresql+asyncpg://hcl_user:hcl_pass@localhost:5432/hcl_db \
 JUDGE0_URL=http://localhost:2358 \
-uvicorn main:app --port 8004 --reload
+uvicorn main:app --host 0.0.0.0 --port 8004 --reload
 ```
 
 Seed the coding problem bank (first time only):
@@ -146,17 +137,16 @@ python seed.py
 cd module5/backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-
 DATABASE_URL=postgresql+asyncpg://hcl_user:hcl_pass@localhost:5432/hcl_db \
 MODULE2_URL=http://localhost:8002 \
 MODULE3_URL=http://localhost:8003 \
 MODULE4_URL=http://localhost:8004 \
-uvicorn main:app --port 8005 --reload
+uvicorn main:app --host 0.0.0.0 --port 8005 --reload
 ```
 
 ---
 
-## Running the Frontend
+## Step 4 — Run the Frontend
 
 ```bash
 cd platform/frontend
@@ -185,7 +175,7 @@ Password: `HCL@2024`
 
 1. **Apply** — find an open job on the home page, submit name, email, and CV (PDF)
 2. **Pre-test instructions** — camera check + environment guidelines before each test
-3. **Written Test** — AI-generated MCQ + short-answer questions tailored to CV skills
+3. **Written Test** — MCQ + short-answer questions tailored to CV skills
 4. **AI Interview** — 5 text-based questions (technical + behavioural), AI-scored
 5. **Coding Test** — algorithmic problems with live code execution in multiple languages
 6. **Done** — final report compiled and available to HR
@@ -233,7 +223,7 @@ VITE_MODULE5_URL=http://localhost:8005
 
 **AI / ML:** Curated question bank (written test generation), keyword-based scoring (interview grading), face-api (behavioural proctoring)
 
-**Code Execution:** Judge0 CE (self-hosted)
+**Code Execution:** Judge0 CE (self-hosted, Docker)
 
 ---
 
