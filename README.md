@@ -90,11 +90,8 @@ bash setup_db.sh
 Open **Git Bash** (not Command Prompt or PowerShell), then:
 
 ```bash
-sed -i 's/\r//' setup_db.sh
 bash setup_db.sh
 ```
-
-> The `sed` command is a one-time fix for line endings — only needed on the first run.
 
 The script creates the `hcl_user` and `hcl_db` database automatically. Safe to re-run on existing databases.
 
@@ -318,8 +315,6 @@ VITE_MODULE5_URL=http://localhost:8005
 ## Troubleshooting
 
 **`role "postgres" does not exist` (Mac Homebrew)** — Homebrew uses your macOS username as the superuser, not `postgres`. The `setup_db.sh` script handles this automatically.
-
-**`$'\r': command not found` (Windows)** — Run `sed -i 's/\r//' setup_db.sh` in Git Bash before running the script.
 
 **`python: command not found` (Mac)** — Use `python3` on Mac. The README commands already use `python3` for Mac.
 
