@@ -1,16 +1,38 @@
 import { useState } from 'react'
-import { CheckCircle2, XCircle, ChevronDown, ChevronUp, Lock, Zap } from 'lucide-react'
+import { CheckCircle2, XCircle, ChevronDown, ChevronUp, Lock, Zap, Terminal } from 'lucide-react'
 
-export default function TestResults({ result }) {
+export default function TestResults({ result, mode }) {
   const [expanded, setExpanded] = useState(null)
   if (!result) return null
 
   const { passed_tests, total_tests, score, status, test_results = [], time_taken_ms, language } = result
+
+  const consoleOutputs = test_results
+    .map((tc, i) => ({ id: tc.test_case_id ?? i + 1, stdout: tc.actual_output || '', stderr: tc.stderr || '', compile_output: tc.compile_output || '' }))
+    .filter(o => o.stdout || o.stderr || o.compile_output)
   const statusColor = status === 'Accepted' ? 'text-emerald-400' : status === 'Partial' ? 'text-amber-400' : 'text-red-400'
   const statusBg = status === 'Accepted' ? 'bg-emerald-500/10 border-emerald-500/30' : status === 'Partial' ? 'bg-amber-500/10 border-amber-500/30' : 'bg-red-500/10 border-red-500/30'
 
   return (
     <div className="space-y-3">
+      {consoleOutputs.length > 0 && (
+        <div className="rounded-xl border border-slate-700/50 overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-2 bg-slate-800/60 border-b border-slate-700/50">
+            <Terminal className="w-3.5 h-3.5 text-slate-400" />
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Console Output</span>
+          </div>
+          <div className="p-3 space-y-2 bg-slate-900/40 max-h-36 overflow-y-auto">
+            {consoleOutputs.map((o) => (
+              <div key={o.id}>
+                <p className="text-[10px] text-slate-500 mb-0.5">Test {o.id}</p>
+                {o.compile_output && <pre className="text-xs font-mono text-amber-300 whitespace-pre-wrap">{o.compile_output}</pre>}
+                {o.stderr && <pre className="text-xs font-mono text-red-400 whitespace-pre-wrap">{o.stderr}</pre>}
+                {o.stdout && <pre className="text-xs font-mono text-emerald-300 whitespace-pre-wrap">{o.stdout}</pre>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div className={`flex items-center justify-between px-4 py-3 rounded-xl border ${statusBg}`}>
         <div className="flex items-center gap-3">
           {status === 'Accepted' ? <CheckCircle2 className="w-5 h-5 text-emerald-400" /> : <XCircle className="w-5 h-5 text-red-400" />}
