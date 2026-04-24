@@ -119,11 +119,8 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
 DATABASE_URL=postgresql+asyncpg://hcl_user:hcl_pass@localhost:5432/hcl_db \
-OPENAI_API_KEY=sk-... \
 uvicorn app.main:app --port 8003 --reload
 ```
-
-`OPENAI_API_KEY` is required for voice/audio transcription (Whisper). Text-based interview answers work without it.
 
 ### Module 4 — Coding Test
 
