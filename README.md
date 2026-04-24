@@ -2,6 +2,8 @@
 
 An end-to-end automated hiring pipeline: CV upload → written test → AI interview → coding assessment → final HR report.
 
+**[HR & Candidate User Guide →](GUIDE.md)**
+
 ```bash
 git clone https://github.com/Anishg198/candidate-evaluator.git
 cd candidate-evaluator
