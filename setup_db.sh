@@ -79,9 +79,15 @@ GRANT ALL PRIVILEGES ON DATABASE hcl_db TO hcl_user;
 EOF
 
 "$PSQL" -U "$PG_USER" -d hcl_db << 'EOF'
-ALTER TABLE m5_final_reports ADD COLUMN IF NOT EXISTS written_time_seconds FLOAT;
-ALTER TABLE m5_final_reports ADD COLUMN IF NOT EXISTS interview_time_seconds FLOAT;
-ALTER TABLE m5_final_reports ADD COLUMN IF NOT EXISTS coding_time_seconds FLOAT;
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'm5_final_reports') THEN
+    ALTER TABLE m5_final_reports ADD COLUMN IF NOT EXISTS written_time_seconds FLOAT;
+    ALTER TABLE m5_final_reports ADD COLUMN IF NOT EXISTS interview_time_seconds FLOAT;
+    ALTER TABLE m5_final_reports ADD COLUMN IF NOT EXISTS coding_time_seconds FLOAT;
+  END IF;
+END
+$$;
 EOF
 
 echo ""
