@@ -1,12 +1,45 @@
 #!/bin/bash
 # Run once: bash setup_db.sh
-# Sets up PostgreSQL database for CandEvalAI
 
 set -e
 
+# Find psql — check common install locations
+PSQL=""
+for candidate in \
+    psql \
+    /usr/local/bin/psql \
+    /opt/homebrew/bin/psql \
+    /opt/homebrew/opt/postgresql@14/bin/psql \
+    /opt/homebrew/opt/postgresql@15/bin/psql \
+    /opt/homebrew/opt/postgresql@16/bin/psql \
+    /Applications/Postgres.app/Contents/Versions/latest/bin/psql \
+    "/Library/PostgreSQL/16/bin/psql" \
+    "/Library/PostgreSQL/15/bin/psql" \
+    "/Library/PostgreSQL/14/bin/psql"
+do
+    if command -v "$candidate" &>/dev/null 2>&1 || [ -f "$candidate" ]; then
+        PSQL="$candidate"
+        break
+    fi
+done
+
+if [ -z "$PSQL" ]; then
+    echo ""
+    echo "ERROR: psql not found."
+    echo ""
+    echo "Install PostgreSQL first:"
+    echo "  Mac (Homebrew):  brew install postgresql@16"
+    echo "  Mac (app):       https://postgresapp.com"
+    echo "  Windows:         https://www.postgresql.org/download/windows"
+    echo ""
+    echo "After install, re-run: bash setup_db.sh"
+    exit 1
+fi
+
+echo "Using psql: $PSQL"
 echo "Setting up CandEvalAI database..."
 
-psql -U postgres << 'EOF'
+"$PSQL" -U postgres << 'EOF'
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'hcl_user') THEN
@@ -24,10 +57,11 @@ WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'hcl_db')\gexec
 GRANT ALL PRIVILEGES ON DATABASE hcl_db TO hcl_user;
 EOF
 
-psql -U postgres -d hcl_db << 'EOF'
+"$PSQL" -U postgres -d hcl_db << 'EOF'
 ALTER TABLE m5_final_reports ADD COLUMN IF NOT EXISTS written_time_seconds FLOAT;
 ALTER TABLE m5_final_reports ADD COLUMN IF NOT EXISTS interview_time_seconds FLOAT;
 ALTER TABLE m5_final_reports ADD COLUMN IF NOT EXISTS coding_time_seconds FLOAT;
 EOF
 
+echo ""
 echo "Done. Database ready."
