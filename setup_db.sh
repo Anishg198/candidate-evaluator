@@ -37,9 +37,30 @@ if [ -z "$PSQL" ]; then
 fi
 
 echo "Using psql: $PSQL"
+
+# Homebrew installs use your macOS username as superuser, not "postgres"
+PG_USER=""
+for u in "$(whoami)" postgres; do
+    if "$PSQL" -U "$u" -c '\q' &>/dev/null 2>&1; then
+        PG_USER="$u"
+        break
+    fi
+done
+
+if [ -z "$PG_USER" ]; then
+    echo ""
+    echo "ERROR: Cannot connect to PostgreSQL as '$(whoami)' or 'postgres'."
+    echo ""
+    echo "Make sure PostgreSQL is running:"
+    echo "  brew services start postgresql@16"
+    echo ""
+    exit 1
+fi
+
+echo "Connecting as PostgreSQL user: $PG_USER"
 echo "Setting up CandEvalAI database..."
 
-"$PSQL" -U postgres << 'EOF'
+"$PSQL" -U "$PG_USER" << 'EOF'
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'hcl_user') THEN
@@ -57,7 +78,7 @@ WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'hcl_db')\gexec
 GRANT ALL PRIVILEGES ON DATABASE hcl_db TO hcl_user;
 EOF
 
-"$PSQL" -U postgres -d hcl_db << 'EOF'
+"$PSQL" -U "$PG_USER" -d hcl_db << 'EOF'
 ALTER TABLE m5_final_reports ADD COLUMN IF NOT EXISTS written_time_seconds FLOAT;
 ALTER TABLE m5_final_reports ADD COLUMN IF NOT EXISTS interview_time_seconds FLOAT;
 ALTER TABLE m5_final_reports ADD COLUMN IF NOT EXISTS coding_time_seconds FLOAT;
