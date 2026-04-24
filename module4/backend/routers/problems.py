@@ -27,6 +27,12 @@ class RunRequest(BaseModel):
     source_code: str
 
 
+class CustomRunRequest(BaseModel):
+    language_id: int
+    source_code: str
+    stdin: str = ""
+
+
 @router.get("/problems")
 async def list_problems(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Problem).order_by(Problem.created_at))
@@ -117,6 +123,34 @@ async def run_code(problem_id: str, req: RunRequest, db: AsyncSession = Depends(
         "score": round((passed / total * 100) if total > 0 else 0, 1),
         "test_results": test_results,
         "dry_run": True,
+    }
+
+
+@router.post("/problems/{problem_id}/run-custom")
+async def run_custom(problem_id: str, req: CustomRunRequest, db: AsyncSession = Depends(get_db)):
+    """Run code against user-supplied stdin — no test case comparison."""
+    if req.language_id not in SUPPORTED_LANGUAGES:
+        raise HTTPException(400, f"Language {req.language_id} not supported.")
+    result = await db.execute(select(Problem).where(Problem.id == problem_id))
+    problem = result.scalar_one_or_none()
+    if not problem:
+        raise HTTPException(404, "Problem not found")
+    wrapper = (problem.wrappers or {}).get(str(req.language_id), "")
+    full_code = req.source_code + wrapper
+    judge_result = await submit_and_wait(
+        source_code=full_code,
+        language_id=req.language_id,
+        stdin=req.stdin,
+        expected_output="",
+        time_limit=problem.time_limit_seconds,
+        memory_limit=problem.memory_limit_mb,
+    )
+    return {
+        "status": judge_result["status"],
+        "stdout": judge_result["stdout"],
+        "stderr": judge_result["stderr"],
+        "compile_output": judge_result.get("compile_output", ""),
+        "time_ms": judge_result["time_ms"],
     }
 
 

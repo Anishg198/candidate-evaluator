@@ -50,6 +50,7 @@ export const startCodingSession = (body) => post(`${M4}/session/start`, body)
 export const getProblems = () => get(`${M4}/problems`)
 export const getProblem = (id) => get(`${M4}/problems/${id}`)
 export const runCode = (problemId, body) => post(`${M4}/problems/${problemId}/run`, body)
+export const runCustom = (problemId, body) => post(`${M4}/problems/${problemId}/run-custom`, body)
 export const submitCode = (problemId, body) => post(`${M4}/problems/${problemId}/submit`, body)
 export const getM4AdminResults = () => get(`${M4}/module4/admin/results`).catch(() => [])
 
