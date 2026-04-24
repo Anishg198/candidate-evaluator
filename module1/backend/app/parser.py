@@ -308,17 +308,20 @@ class ResumeParseResult:
 
 
 def extract_text_from_upload(file_name: str, content: bytes) -> str:
-    # We normalize both PDF and DOCX into a plain-text intermediate so the rest of the parser stays format-agnostic.
+    import os
+    # delete=False so Windows can open the file by name after writing
     suffix = f".{file_name.lower().split('.')[-1]}" if "." in file_name else ""
-    with NamedTemporaryFile(delete=True, suffix=suffix) as temp_file:
-        temp_file.write(content)
-        temp_file.flush()
-
+    tmp = NamedTemporaryFile(delete=False, suffix=suffix)
+    try:
+        tmp.write(content)
+        tmp.close()
         if file_name.lower().endswith(".pdf"):
-            return clean_text(extract_pdf_text(temp_file.name))
+            return clean_text(extract_pdf_text(tmp.name))
         if file_name.lower().endswith(".docx"):
-            return clean_text(docx2txt.process(temp_file.name) or "")
-    raise ValueError("Only PDF and DOCX files are supported.")
+            return clean_text(docx2txt.process(tmp.name) or "")
+        raise ValueError("Only PDF and DOCX files are supported.")
+    finally:
+        os.unlink(tmp.name)
 
 
 def clean_text(text: str) -> str:
