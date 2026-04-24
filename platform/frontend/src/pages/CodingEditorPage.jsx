@@ -1,13 +1,13 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getProblem, runCode, submitCode } from '../api'
+import { getProblem, runCode, runCustom, submitCode } from '../api'
 import PipelineBar from '../components/PipelineBar'
 import CodeEditor, { DEFAULT_CODE } from '../components/CodeEditor'
 import LanguageSelector, { LANGUAGES } from '../components/LanguageSelector'
 import TestResults from '../components/TestResults'
 import BehaviorCamera from '../components/BehaviorCamera'
 import Timer from '../components/Timer'
-import { ArrowLeft, Play, Send, Loader2, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, Play, Send, Loader2, ChevronDown, ChevronUp, CheckCircle2, Terminal } from 'lucide-react'
 
 const CODING_DURATION = 45 * 60
 
@@ -54,7 +54,21 @@ export default function CodingEditorPage() {
   const [error, setError] = useState('')
   const [expandExamples, setExpandExamples] = useState(true)
   const [justAccepted, setJustAccepted] = useState(false)
+  const [customInput, setCustomInput] = useState('')
+  const [customResult, setCustomResult] = useState(null)
+  const [runningCustom, setRunningCustom] = useState(false)
+  const [activeTab, setActiveTab] = useState('testcases')
   const [timeRemaining] = useState(() => getCodingTimeRemaining(candidateId))
+
+  const handleRunCustom = useCallback(async () => {
+    setRunningCustom(true)
+    setCustomResult(null)
+    try {
+      const data = await runCustom(problemId, { language_id: language.id, source_code: code, stdin: customInput })
+      setCustomResult(data)
+    } catch { setCustomResult({ status: 'Error', stdout: '', stderr: 'Request failed', compile_output: '' }) }
+    finally { setRunningCustom(false) }
+  }, [code, language, problemId, customInput])
 
   const handleTimerExpire = useCallback(() => {
     localStorage.setItem(`plt_submitted_${candidateId}`, 'true')
@@ -182,23 +196,71 @@ export default function CodingEditorPage() {
             </button>
           </div>
 
-          <div className={`transition-all duration-300 ${showResults && result ? 'h-[55%]' : 'flex-1'} overflow-hidden`}>
+          <div className={`transition-all duration-300 ${(showResults && result) || activeTab === 'custom' ? 'h-[55%]' : 'flex-1'} overflow-hidden`}>
             <CodeEditor languageId={language.id} value={code} onChange={setCode} />
           </div>
 
-          {showResults && result && (
-            <div className="flex-shrink-0 border-t border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-black/20 overflow-y-auto" style={{ maxHeight: '45%' }}>
-              <div className="p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-                    {resultMode === 'run' ? 'Run Results' : 'Submission Results'}
-                  </h3>
-                  <button onClick={() => setShowResults(false)} className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer">Hide</button>
-                </div>
+          <div className="flex-shrink-0 border-t border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-black/20" style={{ maxHeight: '45%' }}>
+            {/* Tabs */}
+            <div className="flex items-center gap-1 px-4 pt-2 border-b border-slate-200 dark:border-white/10">
+              <button onClick={() => setActiveTab('testcases')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-t-lg transition cursor-pointer ${activeTab === 'testcases' ? 'bg-white dark:bg-white/10 text-slate-800 dark:text-slate-100 border border-b-0 border-slate-200 dark:border-white/10' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
+                Test Cases
+              </button>
+              <button onClick={() => setActiveTab('custom')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-t-lg transition cursor-pointer ${activeTab === 'custom' ? 'bg-white dark:bg-white/10 text-slate-800 dark:text-slate-100 border border-b-0 border-slate-200 dark:border-white/10' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
+                <Terminal className="w-3 h-3" /> Custom Input
+              </button>
+              {activeTab === 'testcases' && showResults && result && (
+                <button onClick={() => setShowResults(false)} className="ml-auto text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer">Hide</button>
+              )}
+            </div>
+
+            {/* Test Cases tab */}
+            {activeTab === 'testcases' && showResults && result && (
+              <div className="p-4 overflow-y-auto" style={{ maxHeight: 'calc(45vh - 40px)' }}>
+                <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-3">
+                  {resultMode === 'run' ? 'Run Results' : 'Submission Results'}
+                </h3>
                 <TestResults result={result} />
               </div>
-            </div>
-          )}
+            )}
+
+            {/* Custom Input tab */}
+            {activeTab === 'custom' && (
+              <div className="p-4 flex flex-col gap-3 overflow-y-auto" style={{ maxHeight: 'calc(45vh - 40px)' }}>
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <p className="text-xs text-slate-500 mb-1 font-medium">Input (stdin)</p>
+                    <textarea
+                      value={customInput}
+                      onChange={(e) => setCustomInput(e.target.value)}
+                      placeholder="Enter your test input here..."
+                      rows={4}
+                      className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm font-mono text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 dark:focus:border-indigo-500/50 resize-none"
+                    />
+                  </div>
+                  {customResult && (
+                    <div className="flex-1">
+                      <p className="text-xs text-slate-500 mb-1 font-medium">Output</p>
+                      <div className="w-full h-[calc(100%-20px)] min-h-[88px] bg-slate-900/50 dark:bg-black/30 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 overflow-y-auto">
+                        {customResult.compile_output && <pre className="text-xs font-mono text-amber-400 whitespace-pre-wrap">{customResult.compile_output}</pre>}
+                        {customResult.stderr && <pre className="text-xs font-mono text-red-400 whitespace-pre-wrap">{customResult.stderr}</pre>}
+                        {customResult.stdout && <pre className="text-xs font-mono text-emerald-300 whitespace-pre-wrap">{customResult.stdout}</pre>}
+                        {!customResult.stdout && !customResult.stderr && !customResult.compile_output && (
+                          <span className="text-xs text-slate-500">(no output)</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <button onClick={handleRunCustom} disabled={runningCustom}
+                  className="self-start flex items-center gap-2 bg-white dark:bg-white/10 hover:bg-slate-100 dark:hover:bg-white/15 disabled:opacity-50 text-slate-700 dark:text-slate-200 text-sm font-semibold px-4 py-2 rounded-xl border border-slate-200 dark:border-white/10 transition cursor-pointer">
+                  {runningCustom ? <><Loader2 className="w-4 h-4 animate-spin" />Running…</> : <><Play className="w-4 h-4" />Run</>}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
