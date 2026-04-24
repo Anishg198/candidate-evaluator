@@ -46,7 +46,15 @@ CREATE DATABASE hcl_db OWNER hcl_user;
 GRANT ALL PRIVILEGES ON DATABASE hcl_db TO hcl_user;
 ```
 
-All backends auto-create their tables on first startup — no migrations needed.
+All backends auto-create their tables on first startup — no migrations needed for a fresh install.
+
+**Existing installs only** — if you already have the database from a previous version, run this once to add the time-tracking columns:
+
+```sql
+ALTER TABLE m5_final_reports ADD COLUMN IF NOT EXISTS written_time_seconds FLOAT;
+ALTER TABLE m5_final_reports ADD COLUMN IF NOT EXISTS interview_time_seconds FLOAT;
+ALTER TABLE m5_final_reports ADD COLUMN IF NOT EXISTS coding_time_seconds FLOAT;
+```
 
 ---
 
@@ -138,6 +146,7 @@ Password: `HCL@2024`
 - Create and manage job postings (skills, difficulty, question count)
 - View all applications and each candidate's pipeline progress
 - Read AI-generated evaluation reports with scores per module
+- See time taken for each test (written, interview, coding)
 - Set HR decisions — Approve or Reject candidates
 
 ---
@@ -146,9 +155,9 @@ Password: `HCL@2024`
 
 1. **Apply** — find an open job on the home page, submit name, email, and CV (PDF)
 2. **Pre-test instructions** — camera check + environment guidelines before each test
-3. **Written Test** — MCQ + short-answer questions tailored to CV skills, 30 min timer
-4. **AI Interview** — 5 text-based questions (technical + behavioural), AI-scored, 30 min timer
-5. **Coding Test** — algorithmic problems with live code execution, 45 min timer
+3. **Written Test** — MCQ + short-answer questions tailored to CV skills, 30 min timer, auto-submits on expire
+4. **AI Interview** — 5 text-based questions (technical + behavioural), AI-scored, 30 min timer, auto-submits on expire
+5. **Coding Test** — algorithmic problems with live code execution, 45 min timer, auto-submits on expire; code auto-saved per problem so candidates can switch problems and return; custom input panel for testing against own inputs
 6. **Done** — final report compiled and available to HR
 
 Candidates receive a **Candidate ID** on applying. Use it on the home page to resume the pipeline after a break.
