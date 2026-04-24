@@ -19,7 +19,6 @@ module3/backend     Interview API (FastAPI)        http://localhost:8003
 module4/backend     Coding test API (FastAPI)      http://localhost:8004
 module5/backend     Final report API (FastAPI)     http://localhost:8005
 PostgreSQL          Shared database                localhost:5432
-Judge0 CE           Code execution engine          http://localhost:2358
 ```
 
 ---
@@ -29,7 +28,13 @@ Judge0 CE           Code execution engine          http://localhost:2358
 - Python 3.10+
 - Node.js 18+
 - PostgreSQL 14+
-- Docker + Docker Compose — required for Judge0 CE only
+- For coding test language support:
+  - Python 3 — included with Python
+  - JavaScript — Node.js (already required)
+  - Java — `java` + `javac` (JDK)
+  - C++ — `g++`
+
+No Docker required. Code execution runs locally via subprocess.
 
 ---
 
@@ -45,40 +50,7 @@ All backends auto-create their tables on first startup — no migrations needed.
 
 ---
 
-## Step 2 — Judge0 Setup (Code Execution)
-
-Judge0 CE runs in Docker (only this service uses Docker).
-
-```bash
-wget https://github.com/judge0/judge0/releases/download/v1.13.1/judge0-v1.13.1.zip
-unzip judge0-v1.13.1.zip
-cd judge0-v1.13.1
-```
-
-Open `judge0.conf` and set two passwords:
-
-```
-REDIS_PASSWORD=yourpassword
-POSTGRES_PASSWORD=yourpassword
-```
-
-Start Judge0:
-
-```bash
-docker-compose up -d db redis
-sleep 10
-docker-compose up -d
-```
-
-Verify it's running (wait ~30s after start):
-
-```bash
-curl http://localhost:2358/languages | head -c 100
-```
-
----
-
-## Step 3 — Run the Backends
+## Step 2 — Run the Backends
 
 Open a **separate terminal** for each. All commands run from the repo root.
 
@@ -121,7 +93,6 @@ cd module4/backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 DATABASE_URL=postgresql+asyncpg://hcl_user:hcl_pass@localhost:5432/hcl_db \
-JUDGE0_URL=http://localhost:2358 \
 uvicorn main:app --host 0.0.0.0 --port 8004 --reload
 ```
 
@@ -146,7 +117,7 @@ uvicorn main:app --host 0.0.0.0 --port 8005 --reload
 
 ---
 
-## Step 4 — Run the Frontend
+## Step 3 — Run the Frontend
 
 ```bash
 cd platform/frontend
@@ -175,18 +146,27 @@ Password: `HCL@2024`
 
 1. **Apply** — find an open job on the home page, submit name, email, and CV (PDF)
 2. **Pre-test instructions** — camera check + environment guidelines before each test
-3. **Written Test** — MCQ + short-answer questions tailored to CV skills
-4. **AI Interview** — 5 text-based questions (technical + behavioural), AI-scored
-5. **Coding Test** — algorithmic problems with live code execution in multiple languages
+3. **Written Test** — MCQ + short-answer questions tailored to CV skills, 30 min timer
+4. **AI Interview** — 5 text-based questions (technical + behavioural), AI-scored, 30 min timer
+5. **Coding Test** — algorithmic problems with live code execution, 45 min timer
 6. **Done** — final report compiled and available to HR
 
 Candidates receive a **Candidate ID** on applying. Use it on the home page to resume the pipeline after a break.
 
 ---
 
-## Supported Coding Languages
+## Code Execution
 
-Python · JavaScript · Java · C++ · C · TypeScript · Go · Rust · Kotlin · Ruby · Swift
+No Docker or external services needed. Module 4 runs code locally via Python `subprocess`:
+
+| Language | Requirement |
+|----------|-------------|
+| Python 3 | `python3` in PATH |
+| JavaScript | `node` in PATH |
+| Java | `javac` + `java` in PATH (JDK) |
+| C++ | `g++` in PATH |
+
+Code runs in a temp file, stdout/stderr is captured and returned to the frontend. A 10-second timeout applies per test case.
 
 ---
 
@@ -201,7 +181,6 @@ Python · JavaScript · Java · C++ · C · TypeScript · Go · Rust · Kotlin �
 | Module 4 — Coding | 8004 |
 | Module 5 — Report | 8005 |
 | PostgreSQL | 5432 |
-| Judge0 | 2358 |
 
 To change any backend URL in the frontend, create `platform/frontend/.env.local`:
 
@@ -223,13 +202,13 @@ VITE_MODULE5_URL=http://localhost:8005
 
 **AI / ML:** Curated question bank (written test generation), keyword-based scoring (interview grading), face-api (behavioural proctoring)
 
-**Code Execution:** Judge0 CE (self-hosted, Docker)
+**Code Execution:** Local subprocess execution (Python, Node.js, Java, g++) — no Docker
 
 ---
 
 ## Troubleshooting
 
-**Coding submissions fail** — Judge0 takes ~30 seconds to be ready after starting. Wait and retry.
+**Coding test fails with "Language not supported"** — only Python, JavaScript, Java, C++ are supported. Make sure `python3`, `node`, `javac`, `g++` are installed and in PATH.
 
 **Camera not working** — browser requires `localhost` (not a LAN IP). Always access via `http://localhost:5175`.
 
