@@ -47,6 +47,8 @@ For coding test language support (optional):
 
 ## Step 1 — Install & Start PostgreSQL
 
+> **This step can take 5–10 minutes** if PostgreSQL is not already installed — the download is ~100 MB. Once installed, future runs are instant.
+
 ### Mac
 
 ```bash
