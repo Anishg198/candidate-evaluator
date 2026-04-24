@@ -7,7 +7,17 @@ import LanguageSelector, { LANGUAGES } from '../components/LanguageSelector'
 import TestResults from '../components/TestResults'
 import BehaviorCamera from '../components/BehaviorCamera'
 import Timer from '../components/Timer'
-import { ArrowLeft, Play, Send, Loader2, ChevronDown, ChevronUp, CheckCircle2, Terminal } from 'lucide-react'
+import { ArrowLeft, Play, Send, Loader2, ChevronDown, ChevronUp, CheckCircle2, Terminal, Save } from 'lucide-react'
+
+const SAVE_KEY = (candidateId, problemId, langId) => `plt_code_${candidateId}_${problemId}_${langId}`
+
+function loadSavedCode(candidateId, problemId, langId) {
+  try { return localStorage.getItem(SAVE_KEY(candidateId, problemId, langId)) || null } catch { return null }
+}
+
+function persistCode(candidateId, problemId, langId, code) {
+  try { localStorage.setItem(SAVE_KEY(candidateId, problemId, langId), code) } catch {}
+}
 
 const CODING_DURATION = 45 * 60
 
@@ -58,6 +68,8 @@ export default function CodingEditorPage() {
   const [customResult, setCustomResult] = useState(null)
   const [runningCustom, setRunningCustom] = useState(false)
   const [activeTab, setActiveTab] = useState('testcases')
+  const [savedAt, setSavedAt] = useState(null)
+  const saveTimer = useRef(null)
   const [timeRemaining] = useState(() => getCodingTimeRemaining(candidateId))
 
   const handleRunCustom = useCallback(async () => {
@@ -82,14 +94,32 @@ export default function CodingEditorPage() {
   useEffect(() => {
     if (!candidateId || candidateId === 'anonymous') { navigate('/cv'); return }
     getProblem(problemId)
-      .then((p) => { setProblem(p); setCode(getStarter(p, language.id)) })
+      .then((p) => {
+        setProblem(p)
+        const saved = loadSavedCode(candidateId, problemId, language.id)
+        setCode(saved ?? getStarter(p, language.id))
+        if (saved) setSavedAt('Restored')
+      })
       .catch(() => setError('Failed to load problem.'))
       .finally(() => setLoading(false))
   }, [problemId])
 
+  // auto-save 1s after user stops typing
+  useEffect(() => {
+    if (!problem) return
+    clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => {
+      persistCode(candidateId, problemId, language.id, code)
+      setSavedAt(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
+    }, 1000)
+    return () => clearTimeout(saveTimer.current)
+  }, [code])
+
   const handleLangChange = (lang) => {
     setLanguage(lang)
-    setCode(getStarter(problem, lang.id))
+    const saved = loadSavedCode(candidateId, problemId, lang.id)
+    setCode(saved ?? getStarter(problem, lang.id))
+    setSavedAt(saved ? 'Restored' : null)
     setResult(null)
     setShowResults(false)
   }
@@ -185,6 +215,11 @@ export default function CodingEditorPage() {
             <LanguageSelector value={language.id} onChange={handleLangChange} />
             <div className="flex-1" />
             {error && <p className="text-red-500 dark:text-red-400 text-xs">{error}</p>}
+            {savedAt && (
+              <span className="flex items-center gap-1 text-xs text-slate-400">
+                <Save className="w-3 h-3" />{savedAt === 'Restored' ? 'Restored saved code' : `Saved ${savedAt}`}
+              </span>
+            )}
             <Timer totalSeconds={timeRemaining} onExpire={handleTimerExpire} />
             <button onClick={handleRun} disabled={running || submitting}
               className="flex items-center gap-2 bg-white dark:bg-white/10 hover:bg-slate-100 dark:hover:bg-white/15 disabled:opacity-50 text-slate-700 dark:text-slate-200 text-sm font-semibold px-4 py-2 rounded-xl border border-slate-200 dark:border-white/10 transition cursor-pointer">
