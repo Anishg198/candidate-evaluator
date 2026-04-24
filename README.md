@@ -36,6 +36,8 @@ PostgreSQL          Shared database                localhost:5432
 
 No Docker required. Code execution runs locally via subprocess.
 
+> **Windows users:** replace `source .venv/bin/activate` with `.venv\Scripts\activate` in all backend commands below.
+
 ---
 
 ## Step 1 — Database Setup
