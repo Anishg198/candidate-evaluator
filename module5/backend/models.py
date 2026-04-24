@@ -62,6 +62,10 @@ class FinalReport(Base):
     interview_data = Column(JSON, nullable=True)
     coding_data = Column(JSON, nullable=True)
 
+    written_time_seconds = Column(Float, nullable=True)
+    interview_time_seconds = Column(Float, nullable=True)
+    coding_time_seconds = Column(Float, nullable=True)
+
     strengths = Column(JSON, default=list)
     concerns = Column(JSON, default=list)
     summary = Column(Text, default="")

@@ -76,6 +76,13 @@ const REC_COLORS = {
   not_recommended: 'text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20',
 }
 
+function fmtTime(seconds) {
+  if (seconds == null) return '—'
+  const m = Math.floor(seconds / 60)
+  const s = Math.floor(seconds % 60)
+  return m > 0 ? `${m}m ${s}s` : `${s}s`
+}
+
 function ScoreBadge({ score }) {
   if (score == null) return <span className="text-slate-400 dark:text-slate-600 text-sm font-medium">—</span>
   const pct = Math.round(score)
@@ -156,6 +163,28 @@ function ReportDetailModal({ candidateId, onClose }) {
                 </div>
               </div>
             </div>
+
+            {/* Time Taken */}
+            {report.time_taken && (
+              <div className="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-5">
+                <p className="text-slate-700 dark:text-slate-300 font-semibold text-sm mb-3 flex items-center gap-2">
+                  <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  Time Taken
+                </p>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    ['Written Test', report.time_taken.written_seconds],
+                    ['AI Interview', report.time_taken.interview_seconds],
+                    ['Coding Test', report.time_taken.coding_seconds],
+                  ].map(([label, secs]) => (
+                    <div key={label} className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-center">
+                      <p className="text-slate-500 text-xs mb-1">{label}</p>
+                      <p className={`text-sm font-semibold ${secs != null ? 'text-slate-800 dark:text-slate-100' : 'text-slate-400'}`}>{fmtTime(secs)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* AI Summary */}
             {report.summary && (

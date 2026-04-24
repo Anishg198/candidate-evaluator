@@ -183,12 +183,16 @@ async def get_result_by_candidate(candidate_id: str, db: AsyncSession = Depends(
     if not session:
         raise HTTPException(404, "No completed interview for this candidate")
     pct = round(session.raw_score / session.max_score * 100, 1) if session.max_score else 0
+    time_taken = None
+    if session.completed_at and session.started_at:
+        time_taken = int((session.completed_at - session.started_at).total_seconds())
     return {
         "session_id": session.id,
         "candidate_id": session.candidate_id,
         "score": round(session.raw_score or 0, 2),
         "total": session.max_score or 0,
         "percentage": pct,
+        "time_taken_seconds": time_taken,
         "answers": session.answers,
     }
 

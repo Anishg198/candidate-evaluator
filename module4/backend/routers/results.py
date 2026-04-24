@@ -90,6 +90,12 @@ async def get_result(candidate_id: str, db: AsyncSession = Depends(get_db)):
     problems_attempted = len(scores)
     problems_solved = sum(1 for s in scores if s == 100.0)
 
+    time_taken = None
+    if session and submissions:
+        last_sub = min(submissions, key=lambda s: s.submitted_at)
+        if last_sub.submitted_at and session.created_at:
+            time_taken = int((last_sub.submitted_at - session.created_at).total_seconds())
+
     return {
         "candidate_id": candidate_id,
         "required_count": required_count,
@@ -98,5 +104,6 @@ async def get_result(candidate_id: str, db: AsyncSession = Depends(get_db)):
         "problems_solved": problems_solved,
         "total_score": total_score,
         "scoring_note": f"Score based on best {required_count} of {len(assigned_ids)} problems",
+        "time_taken_seconds": time_taken,
         "submissions": problem_rows,
     }

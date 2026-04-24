@@ -67,6 +67,9 @@ async def generate_report(req: ReportRequest, db: AsyncSession = Depends(get_db)
     interview_score = interview_data.get("percentage", None) if interview_data else None
     behavior_score = req.behavior_score
     coding_score = coding_data.get("total_score", 0) if coding_data else 0.0
+    written_time = written_data.get("time_taken_seconds") if written_data else None
+    interview_time = interview_data.get("time_taken_seconds") if interview_data else None
+    coding_time = coding_data.get("time_taken_seconds") if coding_data else None
 
     final_score = compute_final_score(cv_score, written_score, coding_score, interview_score, behavior_score)
     rec_key, rec_label = get_recommendation(final_score)
@@ -93,6 +96,9 @@ async def generate_report(req: ReportRequest, db: AsyncSession = Depends(get_db)
         report.strengths = strengths
         report.concerns = concerns
         report.summary = summary
+        report.written_time_seconds = written_time
+        report.interview_time_seconds = interview_time
+        report.coding_time_seconds = coding_time
     else:
         report = FinalReport(
             candidate_id=candidate_id,
@@ -112,6 +118,9 @@ async def generate_report(req: ReportRequest, db: AsyncSession = Depends(get_db)
             strengths=strengths,
             concerns=concerns,
             summary=summary,
+            written_time_seconds=written_time,
+            interview_time_seconds=interview_time,
+            coding_time_seconds=coding_time,
         )
         db.add(report)
 
@@ -180,5 +189,10 @@ def _report_response(r: FinalReport, rec_label: str) -> dict:
         "interview_data": r.interview_data,
         "coding_data": r.coding_data,
         "cv_data": r.cv_data,
+        "time_taken": {
+            "written_seconds": r.written_time_seconds,
+            "interview_seconds": r.interview_time_seconds,
+            "coding_seconds": r.coding_time_seconds,
+        },
         "created_at": r.created_at.isoformat() if r.created_at else None,
     }

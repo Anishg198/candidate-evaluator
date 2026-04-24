@@ -58,6 +58,10 @@ async def get_result(candidate_id: str, db: AsyncSession = Depends(get_db)):
         for skill, stats in skill_stats.items()
     ]
 
+    time_taken = None
+    if session.submitted_at and session.start_time:
+        time_taken = int((session.submitted_at - session.start_time).total_seconds())
+
     return {
         "candidate_id": candidate_id,
         "session_id": session.id,
@@ -65,5 +69,6 @@ async def get_result(candidate_id: str, db: AsyncSession = Depends(get_db)):
         "total": round(total_max, 2),
         "percentage": round((total_score / total_max * 100) if total_max > 0 else 0, 1),
         "submitted_at": session.submitted_at.isoformat() if session.submitted_at else None,
+        "time_taken_seconds": time_taken,
         "breakdown": breakdown,
     }
