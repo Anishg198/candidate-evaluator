@@ -42,21 +42,11 @@ No Docker required. Code execution runs locally via subprocess.
 
 ## Step 1 — Database Setup
 
-```sql
-CREATE USER hcl_user WITH PASSWORD 'hcl_pass';
-CREATE DATABASE hcl_db OWNER hcl_user;
-GRANT ALL PRIVILEGES ON DATABASE hcl_db TO hcl_user;
+```bash
+bash setup_db.sh
 ```
 
-All backends auto-create their tables on first startup — no migrations needed for a fresh install.
-
-**Existing installs only** — if you already have the database from a previous version, run this once to add the time-tracking columns:
-
-```sql
-ALTER TABLE m5_final_reports ADD COLUMN IF NOT EXISTS written_time_seconds FLOAT;
-ALTER TABLE m5_final_reports ADD COLUMN IF NOT EXISTS interview_time_seconds FLOAT;
-ALTER TABLE m5_final_reports ADD COLUMN IF NOT EXISTS coding_time_seconds FLOAT;
-```
+That's it. The script creates the user, database, grants permissions, and applies any required column migrations — safe to run on both fresh installs and existing databases.
 
 ---
 
