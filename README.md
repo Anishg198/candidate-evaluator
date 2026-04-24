@@ -2,6 +2,11 @@
 
 An end-to-end automated hiring pipeline: CV upload → written test → AI interview → coding assessment → final HR report.
 
+```bash
+git clone https://github.com/Anishg198/candidate-evaluator.git
+cd candidate-evaluator
+```
+
 ---
 
 ## Architecture
@@ -24,6 +29,7 @@ Judge0 CE           Code execution engine          http://localhost:2358
 - Python 3.10+
 - Node.js 18+
 - PostgreSQL 14+
+- Docker + Docker Compose — required for Judge0 CE
 - Judge0 CE (self-hosted) — for code execution
 
 ---
@@ -44,19 +50,36 @@ All backends auto-create their tables on first startup — no migrations needed.
 
 ## Judge0 Setup (Code Execution)
 
-Judge0 CE requires Redis and PostgreSQL. Follow the official setup:
+Judge0 CE bundles its own PostgreSQL and Redis — runs entirely in Docker.
 
 ```bash
-# Download Judge0 CE
 wget https://github.com/judge0/judge0/releases/download/v1.13.1/judge0-v1.13.1.zip
-unzip judge0-v1.13.1.zip && cd judge0-v1.13.1
-
-# Configure (set POSTGRES and REDIS credentials in judge0.conf)
-# Start
-docker-compose up -d    # Judge0 uses its own containers internally
+unzip judge0-v1.13.1.zip
+cd judge0-v1.13.1
 ```
 
-Judge0 runs on `http://localhost:2358` by default.
+Generate two passwords and paste them into `judge0.conf`:
+
+```
+REDIS_PASSWORD=<any-password>
+POSTGRES_PASSWORD=<any-password>
+```
+
+Then start:
+
+```bash
+docker-compose up -d db redis
+sleep 10
+docker-compose up -d
+sleep 5
+```
+
+Judge0 runs on `http://localhost:2358`. It takes ~30 seconds to be fully ready after startup.
+
+```bash
+# Verify it's up
+curl http://localhost:2358/languages | head -c 100
+```
 
 ---
 
@@ -82,8 +105,11 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
 DATABASE_URL=postgresql+asyncpg://hcl_user:hcl_pass@localhost:5432/hcl_db \
-uvicorn app.main:app --port 8002 --reload
+MODEL_CACHE_DIR=/tmp/model_cache \
+uvicorn main:app --port 8002 --reload
 ```
+
+**First startup only:** downloads `all-MiniLM-L6-v2` (~90 MB). Subsequent starts are instant.
 
 ### Module 3 — AI Interview
 
@@ -93,8 +119,11 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
 DATABASE_URL=postgresql+asyncpg://hcl_user:hcl_pass@localhost:5432/hcl_db \
+OPENAI_API_KEY=sk-... \
 uvicorn app.main:app --port 8003 --reload
 ```
+
+`OPENAI_API_KEY` is required for voice/audio transcription (Whisper). Text-based interview answers work without it.
 
 ### Module 4 — Coding Test
 
@@ -190,6 +219,7 @@ Python · JavaScript · Java · C++ · C · TypeScript · Go · Rust · Kotlin �
 To change any backend URL in the frontend, create `platform/frontend/.env.local`:
 
 ```env
+VITE_MODULE1_URL=http://localhost:8000
 VITE_MODULE2_URL=http://localhost:8002
 VITE_MODULE3_URL=http://localhost:8003
 VITE_MODULE4_URL=http://localhost:8004
