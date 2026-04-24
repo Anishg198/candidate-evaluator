@@ -2,10 +2,21 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PipelineBar from '../components/PipelineBar'
 import BehaviorCamera from '../components/BehaviorCamera'
+import Timer from '../components/Timer'
 import { startInterview, submitInterviewAnswer, finishInterviewEarly } from '../api'
 import {
   Bot, User, ChevronRight, Loader2, CheckCircle2, AlertCircle, Send, Brain,
 } from 'lucide-react'
+
+const INTERVIEW_DURATION = 30 * 60
+
+function getInterviewTimeRemaining(candidateId) {
+  const key = `plt_interview_start_${candidateId}`
+  const stored = localStorage.getItem(key)
+  if (stored) return Math.max(0, INTERVIEW_DURATION - Math.floor((Date.now() - parseInt(stored)) / 1000))
+  localStorage.setItem(key, String(Date.now()))
+  return INTERVIEW_DURATION
+}
 
 const CATEGORY_COLORS = {
   technical: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/20',
@@ -38,6 +49,7 @@ export default function InterviewPage() {
   const [completed, setCompleted] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
+  const [timeRemaining] = useState(() => getInterviewTimeRemaining(candidateId))
 
   const bottomRef   = useRef(null)
   const textareaRef = useRef(null)
@@ -164,10 +176,13 @@ export default function InterviewPage() {
             </div>
           </div>
           {!completed && currentQ ? (
-            <div className="text-right">
-              <p className="text-slate-500 text-xs">Question {currentQ.number} of {currentQ.total}</p>
-              <div className="w-32 h-1.5 bg-slate-100 dark:bg-white/10 rounded-full mt-1 overflow-hidden">
-                <div className="h-full bg-indigo-500 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
+            <div className="flex items-center gap-4">
+              {!completed && <Timer totalSeconds={timeRemaining} onExpire={handleFinishEarly} />}
+              <div className="text-right">
+                <p className="text-slate-500 text-xs">Question {currentQ.number} of {currentQ.total}</p>
+                <div className="w-32 h-1.5 bg-slate-100 dark:bg-white/10 rounded-full mt-1 overflow-hidden">
+                  <div className="h-full bg-indigo-500 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
+                </div>
               </div>
             </div>
           ) : completed ? (
