@@ -41,7 +41,7 @@ echo "Using psql: $PSQL"
 # Homebrew installs use your macOS username as superuser, not "postgres"
 PG_USER=""
 for u in "$(whoami)" postgres; do
-    if "$PSQL" -U "$u" -c '\q' &>/dev/null 2>&1; then
+    if "$PSQL" -U "$u" -d template1 -c '\q' &>/dev/null 2>&1; then
         PG_USER="$u"
         break
     fi
