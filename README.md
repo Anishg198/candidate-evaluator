@@ -25,9 +25,12 @@ PostgreSQL          Shared database                localhost:5432
 
 ## Prerequisites
 
-- Python 3.10+
-- Node.js 18+
-- PostgreSQL 14+
+- **Python 3.10+** — [python.org/downloads](https://www.python.org/downloads/)
+- **Node.js 18+** — [nodejs.org](https://nodejs.org/)
+- **PostgreSQL 14+** — must be installed and running before Step 1
+  - Mac (Homebrew): `brew install postgresql@16 && brew services start postgresql@16`
+  - Mac (app): [postgresapp.com](https://postgresapp.com)
+  - Windows: [postgresql.org/download/windows](https://www.postgresql.org/download/windows/)
 - For coding test language support:
   - Python 3 — included with Python
   - JavaScript — Node.js (already required)
@@ -36,7 +39,7 @@ PostgreSQL          Shared database                localhost:5432
 
 No Docker required. Code execution runs locally via subprocess.
 
-> **Windows users:** replace `source .venv/bin/activate` with `.venv\Scripts\activate` in all backend commands below.
+> **Windows users:** (1) replace `source .venv/bin/activate` with `.venv\Scripts\activate` in all backend commands, and (2) run `setup_db.sh` in **Git Bash**, not Command Prompt.
 
 ---
 
