@@ -3,7 +3,18 @@ import { useNavigate } from 'react-router-dom'
 import { startCodingSession, getProblems } from '../api'
 import PipelineBar from '../components/PipelineBar'
 import BehaviorCamera from '../components/BehaviorCamera'
+import Timer from '../components/Timer'
 import { Code2, ChevronRight, Loader2, CheckCircle2, Circle, Send, Info, AlertCircle, Bot, Clock, FileText } from 'lucide-react'
+
+const CODING_DURATION = 45 * 60
+
+function getCodingTimeRemaining(candidateId) {
+  const key = `plt_coding_start_${candidateId}`
+  const stored = localStorage.getItem(key)
+  if (stored) return Math.max(0, CODING_DURATION - Math.floor((Date.now() - parseInt(stored)) / 1000))
+  localStorage.setItem(key, String(Date.now()))
+  return CODING_DURATION
+}
 
 const DIFF_STYLES = {
   easy: 'bg-emerald-50 dark:bg-emerald-500/15 border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400',
@@ -24,6 +35,7 @@ export default function CodingProblemsPage() {
   const [problems, setProblems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [timeRemaining] = useState(() => getCodingTimeRemaining(candidateId))
   const [completions, setCompletions] = useState(() => getCompletions(candidateId))
   const [sessionProblemIds, setSessionProblemIds] = useState(() => {
     try { return JSON.parse(localStorage.getItem(`plt_session_problems_${candidateId}`) || 'null') } catch { return null }
@@ -164,6 +176,9 @@ export default function CodingProblemsPage() {
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Coding Assessment</h1>
             {candidateName && <p className="text-slate-500 mt-1">Welcome, <span className="text-slate-700 dark:text-slate-200 font-medium">{candidateName}</span></p>}
+            <div className="flex justify-center mt-3">
+              <Timer totalSeconds={timeRemaining} onExpire={() => finishAndSubmit('/report')} />
+            </div>
           </div>
 
           <div className="flex items-start gap-3 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 rounded-2xl px-5 py-4 mb-6 text-sm">

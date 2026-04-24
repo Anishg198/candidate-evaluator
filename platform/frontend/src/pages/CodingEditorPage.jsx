@@ -6,7 +6,18 @@ import CodeEditor, { DEFAULT_CODE } from '../components/CodeEditor'
 import LanguageSelector, { LANGUAGES } from '../components/LanguageSelector'
 import TestResults from '../components/TestResults'
 import BehaviorCamera from '../components/BehaviorCamera'
+import Timer from '../components/Timer'
 import { ArrowLeft, Play, Send, Loader2, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react'
+
+const CODING_DURATION = 45 * 60
+
+function getCodingTimeRemaining(candidateId) {
+  const key = `plt_coding_start_${candidateId}`
+  const stored = localStorage.getItem(key)
+  if (stored) return Math.max(0, CODING_DURATION - Math.floor((Date.now() - parseInt(stored)) / 1000))
+  localStorage.setItem(key, String(Date.now()))
+  return CODING_DURATION
+}
 
 const DIFF_STYLES = {
   easy: 'bg-emerald-50 dark:bg-emerald-500/15 border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400',
@@ -43,6 +54,14 @@ export default function CodingEditorPage() {
   const [error, setError] = useState('')
   const [expandExamples, setExpandExamples] = useState(true)
   const [justAccepted, setJustAccepted] = useState(false)
+  const [timeRemaining] = useState(() => getCodingTimeRemaining(candidateId))
+
+  const handleTimerExpire = useCallback(() => {
+    localStorage.setItem(`plt_submitted_${candidateId}`, 'true')
+    const behaviorScore = cameraRef.current?.getScore() ?? null
+    if (behaviorScore !== null) localStorage.setItem('plt_behavior_coding', String(behaviorScore))
+    navigate('/report')
+  }, [candidateId, navigate])
 
   const getStarter = (prob, langId) => prob?.starter_code?.[String(langId)] || DEFAULT_CODE[langId] || ''
 
@@ -152,6 +171,7 @@ export default function CodingEditorPage() {
             <LanguageSelector value={language.id} onChange={handleLangChange} />
             <div className="flex-1" />
             {error && <p className="text-red-500 dark:text-red-400 text-xs">{error}</p>}
+            <Timer totalSeconds={timeRemaining} onExpire={handleTimerExpire} />
             <button onClick={handleRun} disabled={running || submitting}
               className="flex items-center gap-2 bg-white dark:bg-white/10 hover:bg-slate-100 dark:hover:bg-white/15 disabled:opacity-50 text-slate-700 dark:text-slate-200 text-sm font-semibold px-4 py-2 rounded-xl border border-slate-200 dark:border-white/10 transition cursor-pointer">
               {running ? <><Loader2 className="w-4 h-4 animate-spin" />Running…</> : <><Play className="w-4 h-4" />Run</>}
