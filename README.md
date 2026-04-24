@@ -61,7 +61,17 @@ Or download the app: [postgresapp.com](https://postgresapp.com)
 
 ### Windows
 
-Download and run the installer: [postgresql.org/download/windows](https://www.postgresql.org/download/windows/)
+**Option 1 — Command line (winget, built into Windows 10/11):**
+```
+winget install PostgreSQL.PostgreSQL.16
+```
+
+**Option 2 — Chocolatey:**
+```
+choco install postgresql16
+```
+
+**Option 3 — Installer:** [postgresql.org/download/windows](https://www.postgresql.org/download/windows/)
 
 During install, set a password for the `postgres` user. After install, PostgreSQL starts automatically as a Windows service.
 
