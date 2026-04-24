@@ -29,7 +29,9 @@ PostgreSQL          Shared database                localhost:5432
 
 Install these before anything else:
 
-- **Python 3.10+** — [python.org/downloads](https://www.python.org/downloads/)
+- **Python 3.11** — [python.org/downloads](https://www.python.org/downloads/) — **use 3.11 specifically** (Module 2 dependencies fail on 3.13; 3.11 has prebuilt wheels for all packages)
+  - Mac: `brew install python@3.11`
+  - Windows: download the 3.11.x installer from python.org
 - **Node.js 18+** — [nodejs.org](https://nodejs.org/)
 - **PostgreSQL 14+** — see platform-specific instructions below
 - **Git** — [git-scm.com](https://git-scm.com/) *(Windows: includes Git Bash — use Git Bash for all commands)*
@@ -110,7 +112,7 @@ Open a **separate terminal** for each module. Run each block from the **repo roo
 **Mac**
 ```bash
 cd module1/backend
-python3 -m venv .venv && source .venv/bin/activate
+python3.11 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
@@ -130,7 +132,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 **Mac**
 ```bash
 cd module2/backend
-python3 -m venv .venv && source .venv/bin/activate
+python3.11 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 DATABASE_URL=postgresql+asyncpg://hcl_user:hcl_pass@localhost:5432/hcl_db \
 MODEL_CACHE_DIR=/tmp/model_cache \
@@ -156,7 +158,7 @@ uvicorn main:app --host 0.0.0.0 --port 8002 --reload --timeout-keep-alive 300
 **Mac**
 ```bash
 cd module3/backend
-python3 -m venv .venv && source .venv/bin/activate
+python3.11 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 DATABASE_URL=postgresql+asyncpg://hcl_user:hcl_pass@localhost:5432/hcl_db \
 uvicorn app.main:app --host 0.0.0.0 --port 8003 --reload
@@ -178,7 +180,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8003 --reload
 **Mac**
 ```bash
 cd module4/backend
-python3 -m venv .venv && source .venv/bin/activate
+python3.11 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 DATABASE_URL=postgresql+asyncpg://hcl_user:hcl_pass@localhost:5432/hcl_db \
 uvicorn main:app --host 0.0.0.0 --port 8004 --reload
@@ -197,7 +199,7 @@ Seed the coding problem bank (first time only):
 
 **Mac**
 ```bash
-python3 seed.py
+python3.11 seed.py
 ```
 
 **Windows (Git Bash)**
@@ -212,7 +214,7 @@ python seed.py
 **Mac**
 ```bash
 cd module5/backend
-python3 -m venv .venv && source .venv/bin/activate
+python3.11 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 DATABASE_URL=postgresql+asyncpg://hcl_user:hcl_pass@localhost:5432/hcl_db \
 MODULE2_URL=http://localhost:8002 \
