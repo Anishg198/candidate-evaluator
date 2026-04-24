@@ -60,7 +60,7 @@ fi
 echo "Connecting as PostgreSQL user: $PG_USER"
 echo "Setting up CandEvalAI database..."
 
-"$PSQL" -U "$PG_USER" << 'EOF'
+"$PSQL" -U "$PG_USER" -d template1 << 'EOF'
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'hcl_user') THEN
