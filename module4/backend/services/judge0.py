@@ -74,14 +74,19 @@ def _execute_python(source: str, stdin: str, timeout: int) -> dict:
 
 
 def _execute_javascript(source: str, stdin: str, timeout: int) -> dict:
-    shim = textwrap.dedent("""\
-        const _lines = require('fs').readFileSync('/dev/stdin', 'utf8').split('\\n');
-        let _li = 0;
-        const readline = () => _lines[_li++] || '';
-        const input = readline;
-    """)
+    # Skip shim if wrapper already declares _lines (avoids duplicate const declaration)
+    if '_lines' not in source:
+        shim = textwrap.dedent("""\
+            const _lines = require('fs').readFileSync('/dev/stdin', 'utf8').split('\\n');
+            let _li = 0;
+            const readline = () => _lines[_li++] || '';
+            const input = readline;
+        """)
+        full_source = shim + "\n" + source
+    else:
+        full_source = source
     with tempfile.NamedTemporaryFile(suffix=".js", mode="w", delete=False) as f:
-        f.write(shim + "\n" + source)
+        f.write(full_source)
         fpath = f.name
     try:
         stdout, stderr, elapsed, timed_out = _run(["node", fpath], stdin, timeout)
